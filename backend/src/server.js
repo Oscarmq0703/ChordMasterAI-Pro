@@ -16,6 +16,10 @@ app.use(
 
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.send("ChordMasterAI Pro backend is running.");
+});
+
 app.get("/health", (req, res) => {
   res.json({ ok: true });
 });
