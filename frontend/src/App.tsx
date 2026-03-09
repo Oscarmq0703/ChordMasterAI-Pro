@@ -632,26 +632,31 @@ function StudentView() {
           </Surface>
         </div>
 
-        <Surface style={{ minHeight: 0, flex: 1, overflow: "hidden" }}>
-          <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-            <div style={{ padding: "16px 16px 8px 16px", flexShrink: 0 }}>
-              <div style={{ ...styles.moduleTitle, fontSize: 16, color: "#cffafe" }}>
-                <Piano size={18} color="#67e8f9" />
-                <span>双八度钢琴键盘</span>
-              </div>
-            </div>
-            <div style={{ minHeight: 0, flex: 1, padding: "0 16px 16px 16px" }}>
-              <PianoKeyboard adaptive showLabels={false} />
-            </div>
-          </div>
-        </Surface>
+        <Surface style={{ minHeight: 320, flex: 1, overflow: "visible" }}>
+             <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                 <div style={{ padding: "16px 16px 8px 16px", flexShrink: 0 }}>
+                     <div style={{ ...styles.moduleTitle, fontSize: 16, color: "#cffafe" }}>
+                          <Piano size={18} color="#67e8f9" />
+                          <span>双八度钢琴键盘</span>
+                     </div>
+                 </div>
+            <div style={{ minHeight: 260, flex: 1, padding: "0 16px 16px 16px" }}>
+      <PianoKeyboard adaptive showLabels={false} />
+    </div>
+  </div>
+</Surface>
       </div>
     </div>
   );
 }
 
 export default function App() {
-  const [view, setView] = useState("teacher");
+  const initialView =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/student")
+      ? "student"
+      : "teacher";
+
+  const [view, setView] = useState(initialView);
 
   return (
     <div style={styles.appRoot}>
@@ -1136,22 +1141,22 @@ const styles: Record<string, CSSProperties> = {
     color: "#d4d4d8",
     boxShadow: "0 10px 24px rgba(0,0,0,.34)",
   },
-  studentShell: {
-    position: "relative",
-    maxWidth: 980,
-    margin: "0 auto",
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    height: "calc(100svh - 76px)",
-    overflow: "hidden",
-    borderRadius: 36,
-    border: "1px solid rgba(255,255,255,.12)",
-    background: "linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04))",
-    padding: 16,
-    boxShadow: "0 30px 90px rgba(0,0,0,.28)",
-    backdropFilter: "blur(20px)",
-  },
+studentShell: {
+  position: "relative",
+  maxWidth: 980,
+  margin: "0 auto",
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+  minHeight: "calc(100svh - 76px)",
+  overflow: "visible",
+  borderRadius: 36,
+  border: "1px solid rgba(255,255,255,.12)",
+  background: "linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04))",
+  padding: 16,
+  boxShadow: "0 30px 90px rgba(0,0,0,.28)",
+  backdropFilter: "blur(20px)",
+},
   studentTopCard: {
     flexShrink: 0,
     borderRadius: 28,
