@@ -151,13 +151,37 @@ const chordTypeOptions = [
   { label: "小七和弦", value: "min7" },
 ];
 
-const studentData: StudentRow[] = [
-  { name: "王同学", progress: 100, accuracy: 90, weak: "减七、增六和弦" },
-  { name: "李同学", progress: 80, accuracy: 75, weak: "半减七、挂留和弦" },
-  { name: "张同学", progress: 60, accuracy: 68, weak: "属七、主四六" },
-  { name: "陈同学", progress: 100, accuracy: 96, weak: "那不勒斯六" },
-  { name: "赵同学", progress: 40, accuracy: 55, weak: "增三、减三" },
-];
+<div style={{ display: "grid", gap: 12 }}>
+  {!teacherSession?.students?.length ? (
+    <div style={{ color: "rgba(255,255,255,.52)", padding: "8px 4px" }}>
+      暂无学生加入课堂
+    </div>
+  ) : null}
+
+  {(teacherSession?.students || []).map((student: any) => (
+    <div key={student.studentId || student.name} style={styles.studentRow}>
+      <div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,.92)" }}>
+          {student.name}
+        </div>
+        <div style={{ marginTop: 4, fontSize: 12, color: "rgba(255,255,255,.34)" }}>
+          已完成 {student.answeredCount} 题
+        </div>
+      </div>
+
+      <div style={styles.progressCol}>
+        <ProgressBar value={student.progress || 0} />
+        <span style={styles.progressScore}>{progressToScore(student.progress || 0)}</span>
+      </div>
+
+      <div style={{ paddingLeft: 24 }}>
+        <span style={styles.rateBadge}>{student.accuracy || 0}%</span>
+      </div>
+
+      <div style={{ color: "rgba(255,255,255,.64)" }}>{student.weak || "—"}</div>
+    </div>
+  ))}
+</div>
 
 const chartData = Array.from({ length: 10 }, (_, index) => ({
   name: `Q${index + 1}`,
@@ -1135,6 +1159,21 @@ async function joinStudentSession() {
       setSessionLoading(false);
     }
   }
+useEffect(() => {
+  if (view !== "teacher" || !sessionId) return;
+
+  fetchTeacherSession(sessionId).catch((err) => {
+    console.error(err);
+  });
+
+  const timer = setInterval(() => {
+    fetchTeacherSession(sessionId).catch((err) => {
+      console.error(err);
+    });
+  }, 2000);
+
+  return () => clearInterval(timer);
+}, [view, sessionId]);
 
 useEffect(() => {
   if (view !== "student" || !sessionId) return;
