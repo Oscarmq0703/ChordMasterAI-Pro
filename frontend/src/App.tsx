@@ -1,4 +1,4 @@
-import React, { CSSProperties, useMemo, useState } from "react";
+import React, { CSSProperties, useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   Wifi,
@@ -24,6 +24,15 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+const API_BASE =
+  import.meta.env.VITE_API_BASE || "http://localhost:10000";
+
+function getSessionIdFromUrl() {
+  if (typeof window === "undefined") return "";
+  const url = new URL(window.location.href);
+  return url.searchParams.get("session") || "";
+}
+
 type StudentRow = {
   name: string;
   progress: number;
@@ -44,23 +53,51 @@ type BlackKey = {
   afterWhiteIndex: number;
 };
 
-const chordTypes = [
-  "大三",
-  "小三",
-  "减三",
-  "增三",
-  "属七",
-  "减七",
-  "半减七",
-  "大七",
-  "小七",
-  "那不勒斯六",
-  "增六和弦",
-  "挂留和弦",
-  "主四六和弦",
-  "主 I",
-  "下属 IV",
-  "属 V（V7）",
+type TeacherSession = {
+  sessionId: string;
+  status: string;
+  createdAt?: string;
+  startedAt?: string | null;
+  currentQuestionIndex?: number;
+  questions?: Array<{
+    id: string;
+    index: number;
+    prompt: string;
+    displayName: string;
+    type: string;
+    typeLabel: string;
+    root: string;
+  }>;
+  students?: any[];
+  stats?: Record<string, any>;
+};
+
+type StudentSession = {
+  sessionId: string;
+  status: string;
+  createdAt?: string;
+  startedAt?: string | null;
+  currentQuestionIndex: number;
+  totalQuestions: number;
+  currentQuestion: {
+    id: string;
+    index: number;
+    prompt: string;
+    displayName: string;
+    type: string;
+    typeLabel: string;
+    root: string;
+  } | null;
+};
+
+const chordTypeOptions = [
+  { label: "大三和弦", value: "major" },
+  { label: "小三和弦", value: "minor" },
+  { label: "减三和弦", value: "dim" },
+  { label: "增三和弦", value: "aug" },
+  { label: "属七和弦", value: "dom7" },
+  { label: "大七和弦", value: "maj7" },
+  { label: "小七和弦", value: "min7" },
 ];
 
 const studentData: StudentRow[] = [
@@ -94,10 +131,6 @@ const blackKeys: BlackKey[] = [
 function progressToScore(progress: number, total = 10) {
   const completed = Math.round((progress / 100) * total);
   return `${completed}/${total}`;
-}
-
-function cx(...parts: Array<string | false | null | undefined>) {
-  return parts.filter(Boolean).join(" ");
 }
 
 function StatusPill({
@@ -263,15 +296,36 @@ function PianoKeyboard({
   );
 }
 
-function TeacherView() {
-  const [selected, setSelected] = useState<string[]>(chordTypes);
+function TeacherView({
+  selectedChordTypes,
+  setSelectedChordTypes,
+  sessionId,
+  studentJoinUrl,
+  teacherSession,
+  sessionLoading,
+  sessionError,
+  startTeacherQuiz,
+}: {
+  selectedChordTypes: string[];
+  setSelectedChordTypes: React.Dispatch<React.SetStateAction<string[]>>;
+  sessionId: string;
+  studentJoinUrl: string;
+  teacherSession: TeacherSession | null;
+  sessionLoading: boolean;
+  sessionError: string;
+  startTeacherQuiz: () => Promise<void>;
+}) {
   const [mode, setMode] = useState("name");
 
   const toggleChord = (item: string) => {
-    setSelected((prev) =>
+    setSelectedChordTypes((prev) =>
       prev.includes(item) ? prev.filter((value) => value !== item) : [...prev, item],
     );
   };
+
+  const qrValue = encodeURIComponent(
+    studentJoinUrl || "https://chordmasterai-frontend.onrender.com/student"
+  );
 
   return (
     <div style={styles.page}>
@@ -312,10 +366,40 @@ function TeacherView() {
                 <div style={styles.qrGlow} />
                 <div style={styles.qrPanel}>
                   <img
-                    src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=https%3A%2F%2Fchordmasterai-frontend.onrender.com%2Fstudent"
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${qrValue}`}
                     alt="学生端二维码"
                     style={styles.qrImage}
                   />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: 12,
+                  borderRadius: 16,
+                  background: "rgba(255,255,255,.06)",
+                  border: "1px solid rgba(255,255,255,.08)",
+                  color: "#e5e7eb",
+                }}
+              >
+                <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 6 }}>当前课堂号</div>
+                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 2 }}>
+                  {sessionId || "未创建"}
+                </div>
+
+                <div style={{ fontSize: 13, opacity: 0.75, marginTop: 12, marginBottom: 6 }}>
+                  学生进入链接
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    wordBreak: "break-all",
+                    color: "#67e8f9",
+                  }}
+                >
+                  {studentJoinUrl || "开始出题后生成"}
                 </div>
               </div>
             </div>
@@ -337,24 +421,24 @@ function TeacherView() {
                     <div style={styles.smallEyebrow}>Chord Library</div>
                     <div style={styles.innerPanelTitle}>选择要纳入本轮练习的和弦类型</div>
                   </div>
-                  <div style={styles.countBadge}>已选择 {selected.length} 类</div>
+                  <div style={styles.countBadge}>已选择 {selectedChordTypes.length} 类</div>
                 </div>
 
                 <div style={styles.chordGrid}>
-                  {chordTypes.map((item) => {
-                    const checked = selected.includes(item);
+                  {chordTypeOptions.map((item) => {
+                    const checked = selectedChordTypes.includes(item.value);
                     return (
                       <button
-                        key={item}
+                        key={item.value}
                         type="button"
-                        onClick={() => toggleChord(item)}
+                        onClick={() => toggleChord(item.value)}
                         style={{
                           ...styles.chordItem,
                           ...(checked ? styles.chordItemChecked : {}),
                         }}
                       >
                         <input type="checkbox" checked={checked} readOnly style={{ width: 16, height: 16 }} />
-                        <span>{item}</span>
+                        <span>{item.label}</span>
                       </button>
                     );
                   })}
@@ -402,9 +486,29 @@ function TeacherView() {
                     当前模式：{mode === "name" ? "给音名答题" : "听和弦答题"}
                   </div>
                 </div>
-                <button type="button" style={styles.primaryBtn}>
+
+                <button type="button" style={styles.primaryBtn} onClick={startTeacherQuiz}>
                   开始出题
                 </button>
+
+                {sessionLoading ? (
+                  <div style={{ marginTop: 10, fontSize: 13, color: "#93c5fd" }}>
+                    正在生成题目并同步课堂…
+                  </div>
+                ) : null}
+
+                {sessionError ? (
+                  <div style={{ marginTop: 10, fontSize: 13, color: "#fca5a5" }}>
+                    {sessionError}
+                  </div>
+                ) : null}
+
+                {teacherSession?.questions?.length ? (
+                  <div style={{ marginTop: 10, fontSize: 13, color: "#86efac" }}>
+                    已生成 {teacherSession.questions.length} 题，当前第{" "}
+                    {(teacherSession.currentQuestionIndex || 0) + 1} 题
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -417,7 +521,7 @@ function TeacherView() {
               icon={<Users size={18} color="#6ee7b7" />}
               title="在线学生列表"
               titleColor="#d1fae5"
-              desc="实时查看学生参与状态、完成进度、正确率与当前薄弱和弦类型。"
+              desc="当前仍为占位数据，下一步接学生提交答案后再改为真实实时数据。"
             />
 
             <div style={styles.innerPanel}>
@@ -464,7 +568,7 @@ function TeacherView() {
               icon={<BarChart3 size={18} color="#fcd34d" />}
               title="每道题全班正确率"
               titleColor="#fef3c7"
-              desc="从整组题目中快速识别易错题与高区分度题目，为下一轮课堂训练提供依据。"
+              desc="当前仍为占位图表，下一步接学生提交答案后改为真实统计数据。"
             />
 
             <div style={{ ...styles.innerPanel, height: 360 }}>
@@ -496,10 +600,16 @@ function TeacherView() {
   );
 }
 
-function StudentView() {
+function StudentView({
+  sessionId,
+  studentSession,
+  sessionError,
+}: {
+  sessionId: string;
+  studentSession: StudentSession | null;
+  sessionError: string;
+}) {
   const [name, setName] = useState("张同学");
-  const [mode] = useState("name");
-  const [currentQuestion] = useState(4);
   const [showAiSummary] = useState(false);
 
   const feedback: Feedback = useMemo(
@@ -550,7 +660,11 @@ function StudentView() {
             <div style={{ ...styles.studentInfoCard, gridColumn: "span 3" }}>
               <div style={styles.topMiniLabel}>Connection</div>
               <div style={{ marginTop: 12 }}>
-                <StatusPill textOnline="已连接" textOffline="未连接" />
+                <StatusPill
+                  online={!!sessionId}
+                  textOnline="已连接"
+                  textOffline="未连接"
+                />
               </div>
             </div>
           </div>
@@ -560,16 +674,60 @@ function StudentView() {
           <Surface style={{ gridColumn: "span 4" }}>
             <div style={{ padding: 16 }}>
               <div style={styles.sectionLabel}>题目</div>
-              {mode === "name" ? (
-                <div style={styles.questionCard}>
-                  请弹奏：<span style={{ color: "#fff" }}>C 属七和弦</span>
+
+              <div
+                style={{
+                  marginTop: 8,
+                  borderRadius: 26,
+                  border: "1px solid rgba(255,255,255,.14)",
+                  background: "linear-gradient(180deg, rgba(255,255,255,.11), rgba(255,255,255,.05))",
+                  padding: 20,
+                  fontSize: "1.1rem",
+                  lineHeight: 1.8,
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+                }}
+              >
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,.65)", marginBottom: 8 }}>
+                  当前课堂
                 </div>
-              ) : (
-                <button type="button" style={{ ...styles.primaryBtn, height: 48, fontSize: 15 }}>
-                  <Play size={18} style={{ marginRight: 8 }} />
-                  播放
-                </button>
-              )}
+                <div style={{ fontSize: 20, fontWeight: 700, color: "#f9fafb", marginBottom: 14 }}>
+                  {sessionId || "未加入课堂"}
+                </div>
+
+                {!sessionId ? (
+                  <div style={{ fontSize: 14, color: "#fca5a5" }}>
+                    请通过教师二维码或带 session 参数的链接进入学生端
+                  </div>
+                ) : !studentSession ? (
+                  <div style={{ fontSize: 14, color: "#93c5fd" }}>
+                    正在同步课堂题目…
+                  </div>
+                ) : studentSession.status !== "running" ? (
+                  <div style={{ fontSize: 14, color: "#fcd34d" }}>
+                    教师尚未开始出题，请稍候…
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 13, color: "rgba(255,255,255,.65)", marginBottom: 8 }}>
+                      第 {studentSession.currentQuestionIndex + 1} / {studentSession.totalQuestions} 题
+                    </div>
+
+                    <div style={{ fontSize: 28, fontWeight: 800, color: "#ffffff", marginBottom: 8 }}>
+                      {studentSession.currentQuestion?.displayName || "—"}
+                    </div>
+
+                    <div style={{ fontSize: 16, color: "#cbd5e1" }}>
+                      {studentSession.currentQuestion?.prompt || "暂无题目"}
+                    </div>
+                  </>
+                )}
+
+                {sessionError ? (
+                  <div style={{ marginTop: 12, fontSize: 13, color: "#fca5a5" }}>
+                    {sessionError}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </Surface>
 
@@ -578,11 +736,15 @@ function StudentView() {
               <div style={styles.sectionLabel}>答题进度</div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 20, marginTop: 8 }}>
                 <div>
-                  <div style={styles.scoreBig}>4 / 10</div>
-                  <div style={styles.scoreSub}>已完成题目数量</div>
+                  <div style={styles.scoreBig}>
+                    {studentSession?.totalQuestions
+                      ? `${studentSession.currentQuestionIndex + 1} / ${studentSession.totalQuestions}`
+                      : "0 / 10"}
+                  </div>
+                  <div style={styles.scoreSub}>当前题目进度</div>
                 </div>
                 <div>
-                  <div style={styles.scoreBig}>3</div>
+                  <div style={styles.scoreBig}>--</div>
                   <div style={styles.scoreSub}>正确题目数量</div>
                 </div>
               </div>
@@ -593,7 +755,7 @@ function StudentView() {
             <div style={{ padding: 16 }}>
               <div style={styles.feedbackHead}>
                 <BrainCircuit size={16} color="#f0abfc" />
-                <span>{showAiSummary ? "AI智能反馈 · Gordon 听想" : `第 ${currentQuestion} 题反馈`}</span>
+                <span>{showAiSummary ? "AI智能反馈 · Gordon 听想" : "即时反馈区（下一步接答题判定）"}</span>
               </div>
 
               {!showAiSummary ? (
@@ -603,7 +765,7 @@ function StudentView() {
                     ...(instantCorrect ? styles.instantCorrect : styles.instantWrong),
                   }}
                 >
-                  {instantCorrect ? "回答正确" : "回答错误"}
+                  当前版本已完成“同步题目”，下一步接“学生提交答案 + 正误判断”
                 </div>
               ) : (
                 <>
@@ -633,18 +795,18 @@ function StudentView() {
         </div>
 
         <Surface style={{ minHeight: 320, flex: 1, overflow: "visible" }}>
-             <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-                 <div style={{ padding: "16px 16px 8px 16px", flexShrink: 0 }}>
-                     <div style={{ ...styles.moduleTitle, fontSize: 16, color: "#cffafe" }}>
-                          <Piano size={18} color="#67e8f9" />
-                          <span>双八度钢琴键盘</span>
-                     </div>
-                 </div>
+          <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <div style={{ padding: "16px 16px 8px 16px", flexShrink: 0 }}>
+              <div style={{ ...styles.moduleTitle, fontSize: 16, color: "#cffafe" }}>
+                <Piano size={18} color="#67e8f9" />
+                <span>双八度钢琴键盘</span>
+              </div>
+            </div>
             <div style={{ minHeight: 260, flex: 1, padding: "0 16px 16px 16px" }}>
-      <PianoKeyboard adaptive showLabels={false} />
-    </div>
-  </div>
-</Surface>
+              <PianoKeyboard adaptive showLabels={false} />
+            </div>
+          </div>
+        </Surface>
       </div>
     </div>
   );
@@ -657,6 +819,126 @@ export default function App() {
       : "teacher";
 
   const [view, setView] = useState(initialView);
+  const [sessionId, setSessionId] = useState(getSessionIdFromUrl());
+  const [teacherSession, setTeacherSession] = useState<TeacherSession | null>(null);
+  const [studentSession, setStudentSession] = useState<StudentSession | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [sessionError, setSessionError] = useState("");
+  const [selectedChordTypes, setSelectedChordTypes] = useState<string[]>([
+    "major",
+    "minor",
+    "dom7",
+  ]);
+
+  async function createSessionIfNeeded() {
+    if (sessionId) return sessionId;
+
+    const res = await fetch(`${API_BASE}/api/session/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || "创建课堂失败");
+    }
+
+    setSessionId(data.sessionId);
+    setTeacherSession(data.session);
+
+    return data.sessionId;
+  }
+
+  async function fetchTeacherSession(currentSessionId: string) {
+    const res = await fetch(`${API_BASE}/api/session/${currentSessionId}/teacher`);
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || "获取教师课堂失败");
+    }
+
+    setTeacherSession(data.session);
+  }
+
+  async function fetchStudentSession(currentSessionId: string) {
+    const res = await fetch(`${API_BASE}/api/session/${currentSessionId}/public`);
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || "获取学生课堂失败");
+    }
+
+    setStudentSession(data.session);
+  }
+
+  async function startTeacherQuiz() {
+    try {
+      setSessionLoading(true);
+      setSessionError("");
+
+      const sid = await createSessionIfNeeded();
+
+      const res = await fetch(`${API_BASE}/api/session/${sid}/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chordTypes: selectedChordTypes,
+          count: 10,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "开始出题失败");
+      }
+
+      setTeacherSession(data.session);
+    } catch (error: any) {
+      setSessionError(error.message || "开始出题失败");
+    } finally {
+      setSessionLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (view !== "teacher" || !sessionId) return;
+
+    fetchTeacherSession(sessionId).catch((err) => {
+      console.error(err);
+    });
+
+    const timer = setInterval(() => {
+      fetchTeacherSession(sessionId).catch((err) => {
+        console.error(err);
+      });
+    }, 2000);
+
+    return () => clearInterval(timer);
+  }, [view, sessionId]);
+
+  useEffect(() => {
+    if (view !== "student" || !sessionId) return;
+
+    fetchStudentSession(sessionId).catch((err) => {
+      console.error(err);
+      setSessionError("课堂不存在或尚未开始");
+    });
+
+    const timer = setInterval(() => {
+      fetchStudentSession(sessionId).catch((err) => {
+        console.error(err);
+      });
+    }, 2000);
+
+    return () => clearInterval(timer);
+  }, [view, sessionId]);
+
+  const studentJoinUrl = useMemo(() => {
+    if (!sessionId || typeof window === "undefined") return "";
+    return `${window.location.origin}/student?session=${sessionId}`;
+  }, [sessionId]);
 
   return (
     <div style={styles.appRoot}>
@@ -694,7 +976,24 @@ export default function App() {
         </div>
       </div>
 
-      {view === "teacher" ? <TeacherView /> : <StudentView />}
+      {view === "teacher" ? (
+        <TeacherView
+          selectedChordTypes={selectedChordTypes}
+          setSelectedChordTypes={setSelectedChordTypes}
+          sessionId={sessionId}
+          studentJoinUrl={studentJoinUrl}
+          teacherSession={teacherSession}
+          sessionLoading={sessionLoading}
+          sessionError={sessionError}
+          startTeacherQuiz={startTeacherQuiz}
+        />
+      ) : (
+        <StudentView
+          sessionId={sessionId}
+          studentSession={studentSession}
+          sessionError={sessionError}
+        />
+      )}
     </div>
   );
 }
@@ -1141,22 +1440,22 @@ const styles: Record<string, CSSProperties> = {
     color: "#d4d4d8",
     boxShadow: "0 10px 24px rgba(0,0,0,.34)",
   },
-studentShell: {
-  position: "relative",
-  maxWidth: 980,
-  margin: "0 auto",
-  display: "flex",
-  flexDirection: "column",
-  gap: 12,
-  minHeight: "calc(100svh - 76px)",
-  overflow: "visible",
-  borderRadius: 36,
-  border: "1px solid rgba(255,255,255,.12)",
-  background: "linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04))",
-  padding: 16,
-  boxShadow: "0 30px 90px rgba(0,0,0,.28)",
-  backdropFilter: "blur(20px)",
-},
+  studentShell: {
+    position: "relative",
+    maxWidth: 980,
+    margin: "0 auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    minHeight: "calc(100svh - 76px)",
+    overflow: "visible",
+    borderRadius: 36,
+    border: "1px solid rgba(255,255,255,.12)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04))",
+    padding: 16,
+    boxShadow: "0 30px 90px rgba(0,0,0,.28)",
+    backdropFilter: "blur(20px)",
+  },
   studentTopCard: {
     flexShrink: 0,
     borderRadius: 28,
