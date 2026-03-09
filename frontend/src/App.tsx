@@ -1,11 +1,4 @@
-import React, { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React, { CSSProperties, useMemo, useState } from "react";
 import {
   BarChart3,
   Wifi,
@@ -30,23 +23,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-
-type StatusPillProps = {
-  online?: boolean;
-  textOnline?: string;
-  textOffline?: string;
-};
-
-type SurfaceProps = {
-  children: React.ReactNode;
-  className?: string;
-};
-
-type PianoKeyboardProps = {
-  compact?: boolean;
-  showLabels?: boolean;
-  adaptive?: boolean;
-};
 
 type StudentRow = {
   name: string;
@@ -120,17 +96,6 @@ function progressToScore(progress: number, total = 10) {
   return `${completed}/${total}`;
 }
 
-function validateKeyboardLayout() {
-  console.assert(whiteKeys.length === 14, "Expected 14 white keys for two octaves.");
-  console.assert(blackKeys.length === 10, "Expected 10 black keys for two octaves.");
-  console.assert(
-    blackKeys.every((key) => key.afterWhiteIndex >= 0 && key.afterWhiteIndex < whiteKeys.length - 1),
-    "Each black key should be placed between two white keys.",
-  );
-}
-
-validateKeyboardLayout();
-
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
@@ -139,64 +104,127 @@ function StatusPill({
   online = true,
   textOnline = "系统在线",
   textOffline = "系统离线",
-}: StatusPillProps) {
+}: {
+  online?: boolean;
+  textOnline?: string;
+  textOffline?: string;
+}) {
   return (
-    <div
-      className={cx(
-        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm",
-        online ? "border-white/12 bg-white/[0.05] text-white/84" : "border-white/10 bg-white/[0.04] text-white/55",
-      )}
-    >
-      {online ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+    <div style={{ ...styles.statusPill, ...(online ? styles.statusOnline : styles.statusOffline) }}>
+      {online ? <Wifi size={14} /> : <WifiOff size={14} />}
       <span>{online ? textOnline : textOffline}</span>
     </div>
   );
 }
 
-function Surface({ children, className = "" }: SurfaceProps) {
+function Surface({
+  children,
+  style = {},
+}: {
+  children: React.ReactNode;
+  style?: CSSProperties;
+}) {
+  return <div style={{ ...styles.surface, ...style }}>{children}</div>;
+}
+
+function SectionTitle({
+  eyebrow,
+  icon,
+  title,
+  titleColor,
+  desc,
+}: {
+  eyebrow: string;
+  icon: React.ReactNode;
+  title: string;
+  titleColor: string;
+  desc?: string;
+}) {
   return (
-    <div
-      className={cx(
-        "min-w-0 rounded-[32px] border border-white/12",
-        "bg-[linear-gradient(180deg,rgba(255,255,255,0.085),rgba(255,255,255,0.04))]",
-        "shadow-[0_28px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl",
-        className,
-      )}
-    >
-      {children}
+    <div>
+      <div style={styles.eyebrow}>{eyebrow}</div>
+      <div style={{ ...styles.moduleTitle, color: titleColor }}>
+        {icon}
+        <span>{title}</span>
+      </div>
+      {desc ? <div style={styles.moduleDesc}>{desc}</div> : null}
     </div>
   );
 }
 
-function PianoKeyboard({ compact = false, showLabels = true, adaptive = false }: PianoKeyboardProps) {
-  const whiteWidth = compact ? 38 : 44;
-  const whiteHeight = compact ? 150 : 182;
-  const blackWidth = compact ? 24 : 28;
-  const blackHeight = compact ? 92 : 112;
+function Segmented({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div style={styles.segmentWrap}>
+      {options.map((option) => {
+        const active = value === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            style={{
+              ...styles.segmentBtn,
+              ...(active ? styles.segmentBtnActive : {}),
+            }}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProgressBar({ value }: { value: number }) {
+  return (
+    <div style={styles.progressTrack}>
+      <div style={{ ...styles.progressFill, width: `${value}%` }} />
+    </div>
+  );
+}
+
+function PianoKeyboard({
+  adaptive = false,
+  showLabels = false,
+}: {
+  adaptive?: boolean;
+  showLabels?: boolean;
+}) {
+  const whiteWidth = 44;
+  const whiteHeight = 170;
+  const blackWidth = 28;
+  const blackHeight = 104;
   const keyboardWidth = whiteKeys.length * whiteWidth;
 
-  const containerClass = adaptive
-    ? "relative mx-auto w-full rounded-[28px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-    : "relative mx-auto w-full overflow-x-auto rounded-[28px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]";
+  const wrapStyle = adaptive
+    ? { ...styles.keyboardWrap, padding: 12 }
+    : { ...styles.keyboardWrap, overflowX: "auto" as const, padding: 16 };
 
   const layoutStyle = adaptive
-    ? ({ aspectRatio: `${keyboardWidth} / ${whiteHeight}`, width: "100%" } as const)
-    : ({ width: keyboardWidth } as const);
-
-  const whiteKeyStyle = adaptive
-    ? ({ width: `${100 / whiteKeys.length}%`, height: "100%" } as const)
-    : ({ width: whiteWidth, height: whiteHeight } as const);
+    ? ({ position: "relative", width: "100%", aspectRatio: `${keyboardWidth} / ${whiteHeight}` } as CSSProperties)
+    : ({ position: "relative", width: keyboardWidth, height: whiteHeight } as CSSProperties);
 
   return (
-    <div className={containerClass}>
-      <div className="relative" style={layoutStyle}>
-        <div className="flex h-full">
+    <div style={wrapStyle}>
+      <div style={layoutStyle}>
+        <div style={{ display: "flex", height: "100%" }}>
           {whiteKeys.map((key, index) => (
             <button
               key={`${key}-${index}`}
               type="button"
-              className="flex items-end justify-center border border-black/8 bg-[linear-gradient(180deg,#ffffff,#f4f4f5)] pb-2 text-[10px] font-medium text-zinc-700 shadow-[0_10px_18px_rgba(0,0,0,0.08)] transition hover:brightness-[0.99] active:brightness-95"
-              style={whiteKeyStyle}
+              style={{
+                ...styles.whiteKey,
+                width: adaptive ? `${100 / whiteKeys.length}%` : whiteWidth,
+                height: "100%",
+              }}
             >
               {showLabels ? key : null}
             </button>
@@ -208,20 +236,23 @@ function PianoKeyboard({ compact = false, showLabels = true, adaptive = false }:
             ? `calc(${((key.afterWhiteIndex + 1) / whiteKeys.length) * 100}% - ${(blackWidth / keyboardWidth) * 50}%)`
             : (key.afterWhiteIndex + 1) * whiteWidth - blackWidth / 2;
 
-          const blackStyle = adaptive
-            ? ({
+          const blackStyle: CSSProperties = adaptive
+            ? {
                 left,
                 width: `${(blackWidth / keyboardWidth) * 100}%`,
                 height: `${(blackHeight / whiteHeight) * 100}%`,
-              } as const)
-            : ({ left, width: blackWidth, height: blackHeight } as const);
+              }
+            : {
+                left: left as number,
+                width: blackWidth,
+                height: blackHeight,
+              };
 
           return (
             <button
               key={`${key.note}-${index}`}
               type="button"
-              className="absolute top-0 z-10 flex items-end justify-center rounded-b-[10px] border border-black/35 bg-[linear-gradient(180deg,#1d1d1f,#050505)] pb-1.5 text-[9px] text-zinc-300 shadow-[0_10px_24px_rgba(0,0,0,0.34)] transition hover:brightness-110 active:brightness-95"
-              style={blackStyle}
+              style={{ ...styles.blackKey, ...blackStyle }}
             >
               {showLabels ? key.note : null}
             </button>
@@ -237,270 +268,228 @@ function TeacherView() {
   const [mode, setMode] = useState("name");
 
   const toggleChord = (item: string) => {
-    setSelected((prev) => (prev.includes(item) ? prev.filter((value) => value !== item) : [...prev, item]));
+    setSelected((prev) =>
+      prev.includes(item) ? prev.filter((value) => value !== item) : [...prev, item],
+    );
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0b0c10] px-5 py-8 text-white lg:px-8">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-[-18rem] h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute left-[-8rem] top-24 h-[24rem] w-[24rem] rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute right-[-8rem] bottom-[-4rem] h-[24rem] w-[24rem] rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.045),transparent_20%)]" />
-      </div>
+    <div style={styles.page}>
+      <div style={styles.bgGlowTop} />
+      <div style={styles.bgGlowLeft} />
+      <div style={styles.bgGlowRight} />
 
-      <div className="relative mx-auto w-full max-w-[1680px] space-y-8">
-        <section className="relative overflow-hidden rounded-[40px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.1),rgba(255,255,255,0.045))] px-10 py-10 shadow-[0_36px_100px_rgba(0,0,0,0.3)] backdrop-blur-2xl">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute left-1/2 top-[-30%] h-[22rem] w-[22rem] -translate-x-1/2 rounded-full bg-white/12 blur-3xl" />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),transparent_50%)]" />
-          </div>
-          <div className="relative flex items-start justify-between gap-8">
-            <div className="max-w-4xl">
-              <div className="text-sm font-medium uppercase tracking-[0.22em] text-sky-200/60">ChordMasterAI Pro</div>
-              <h1 className="mt-4 text-[4.25rem] font-semibold leading-[0.95] tracking-[-0.07em] text-white">
-                ChordMasterAI Pro
-              </h1>
-              <p className="mt-5 max-w-3xl text-lg leading-8 text-white/58">
-                以课堂联机、听想训练与即时反馈为核心，连接教师出题、学生弹奏、班级统计与个性化建议，打造更具音乐感知深度的和弦学习体验。
+      <div style={styles.container}>
+        <section style={styles.hero}>
+          <div style={styles.heroGlow} />
+          <div style={styles.heroContent}>
+            <div style={{ maxWidth: 860 }}>
+              <div style={styles.heroEyebrow}>ChordMasterAI Pro</div>
+              <h1 style={styles.heroTitle}>ChordMasterAI Pro</h1>
+              <p style={styles.heroDesc}>
+                以课堂联机、听想训练与即时反馈为核心，连接教师出题、学生弹奏、班级统计与个性化建议，
+                打造更具音乐感知深度的和弦学习体验。
               </p>
             </div>
-            <div className="pt-2">
-              <StatusPill online textOnline="系统在线" textOffline="系统离线" />
+            <div style={{ paddingTop: 8 }}>
+              <StatusPill />
             </div>
           </div>
         </section>
 
-        <div className="grid grid-cols-12 gap-6">
-          <Surface className="col-span-4 overflow-hidden p-0">
-            <Card className="border-0 bg-transparent text-white shadow-none">
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-4 px-1">
-                  <div>
-                    <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/38">Student Access</div>
-                    <CardTitle className="mt-2 flex items-center gap-2 text-[1.18rem] font-medium text-sky-100">
-                      <QrCode className="h-5 w-5 text-sky-300" /> 学生扫码进入
-                    </CardTitle>
-                    <div className="mt-2 text-sm leading-6 text-white/48">
-                      课堂统一扫码登录，快速进入学生端并接收同一组练习任务。
-                    </div>
-                  </div>
+        <div style={styles.grid12}>
+          <Surface style={{ gridColumn: "span 4", overflow: "hidden" }}>
+            <div style={styles.cardPad}>
+              <SectionTitle
+                eyebrow="Student Access"
+                icon={<QrCode size={18} color="#7dd3fc" />}
+                title="学生扫码进入"
+                titleColor="#e0f2fe"
+                desc="课堂统一扫码登录，快速进入学生端并接收同一组练习任务。"
+              />
+
+              <div style={styles.qrShell}>
+                <div style={styles.qrGlow} />
+                <div style={styles.qrPanel}>
+                  <img
+                    src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=https%3A%2F%2Fchordmasterai-frontend.onrender.com%2Fstudent"
+                    alt="学生端二维码"
+                    style={styles.qrImage}
+                  />
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-5 pt-2">
-                <div className="relative overflow-hidden rounded-[34px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.11),rgba(255,255,255,0.04))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                  <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute left-1/2 top-[-18%] h-44 w-44 -translate-x-1/2 rounded-full bg-white/12 blur-3xl" />
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),transparent_48%)]" />
-                  </div>
-                  <div className="relative mx-auto flex h-72 w-72 items-center justify-center rounded-[30px] border border-white/14 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                    <img
-                      src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=https%3A%2F%2Fchordmasterai-frontend.onrender.com%2Fstudent"
-                      alt="学生端二维码"
-                      className="h-[240px] w-[240px] rounded-[18px] bg-white p-3"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </Surface>
 
-          <Surface className="col-span-8 overflow-hidden p-0">
-            <Card className="border-0 bg-transparent text-white shadow-none">
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-6 px-1">
+          <Surface style={{ gridColumn: "span 8", overflow: "hidden" }}>
+            <div style={styles.cardPad}>
+              <SectionTitle
+                eyebrow="Practice Control"
+                icon={<Music2 size={18} color="#c4b5fd" />}
+                title="和弦类型与出题设置"
+                titleColor="#ede9fe"
+                desc="选择训练和弦，构建本轮练习题库，为统一出题做好准备。"
+              />
+
+              <div style={styles.innerPanel}>
+                <div style={styles.innerPanelHead}>
                   <div>
-                    <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/38">Practice Control</div>
-                    <CardTitle className="mt-2 flex items-center gap-2 text-[1.18rem] font-medium text-violet-100">
-                      <Music2 className="h-5 w-5 text-violet-300" /> 和弦类型与出题设置
-                    </CardTitle>
-                    <div className="mt-2 text-sm leading-6 text-white/48">
-                      选择训练和弦，构建本轮练习题库，为统一出题做好准备。
-                    </div>
+                    <div style={styles.smallEyebrow}>Chord Library</div>
+                    <div style={styles.innerPanelTitle}>选择要纳入本轮练习的和弦类型</div>
                   </div>
+                  <div style={styles.countBadge}>已选择 {selected.length} 类</div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-6 pt-2">
-                <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.025))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                  <div className="mb-4 flex items-center justify-between gap-4">
-                    <div>
-                      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/34">Chord Library</div>
-                      <div className="mt-2 text-base font-medium text-white/88">选择要纳入本轮练习的和弦类型</div>
-                    </div>
-                    <div className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-sm text-white/70">
-                      已选择 {selected.length} 类
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-4 gap-3.5">
-                    {chordTypes.map((item) => {
-                      const checked = selected.includes(item);
-                      return (
-                        <div
-                          key={item}
-                          className={cx(
-                            "flex items-center gap-3 rounded-[22px] border px-3.5 py-3.5 transition",
-                            checked
-                              ? "border-white/14 bg-white/[0.09] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                              : "border-white/8 bg-white/[0.035]",
-                          )}
-                        >
-                          <Checkbox checked={checked} onCheckedChange={() => toggleChord(item)} />
-                          <span className="text-sm text-white/82">{item}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+
+                <div style={styles.chordGrid}>
+                  {chordTypes.map((item) => {
+                    const checked = selected.includes(item);
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => toggleChord(item)}
+                        style={{
+                          ...styles.chordItem,
+                          ...(checked ? styles.chordItemChecked : {}),
+                        }}
+                      >
+                        <input type="checkbox" checked={checked} readOnly style={{ width: 16, height: 16 }} />
+                        <span>{item}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </Surface>
         </div>
 
-        <Surface className="overflow-hidden p-0">
-          <Card className="border-0 bg-transparent text-white shadow-none">
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between gap-6 px-1">
-                <div>
-                  <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/38">Practice Launch</div>
-                  <CardTitle className="mt-2 flex items-center gap-2 text-[1.18rem] font-medium text-violet-100">
-                    <Play className="h-5 w-5 text-violet-300" /> 选择学生作答方式与开始出题
-                  </CardTitle>
+        <Surface style={{ overflow: "hidden" }}>
+          <div style={styles.cardPad}>
+            <SectionTitle
+              eyebrow="Practice Launch"
+              icon={<Play size={18} color="#c4b5fd" />}
+              title="选择学生作答方式与开始出题"
+              titleColor="#ede9fe"
+            />
+
+            <div style={styles.grid12}>
+              <div style={{ ...styles.innerPanel, gridColumn: "span 6" }}>
+                <div style={styles.smallEyebrow}>Response Mode</div>
+                <div style={styles.innerPanelTitle}>选择学生作答方式</div>
+
+                <Segmented
+                  value={mode}
+                  onChange={setMode}
+                  options={[
+                    { value: "name", label: "模式一：给音名答题" },
+                    { value: "audio", label: "模式二：听和弦答题" },
+                  ]}
+                />
+
+                <div style={{ ...styles.softPanel, marginTop: 18 }}>
+                  {mode === "name"
+                    ? "系统随机显示和弦名称，学生在虚拟钢琴上逐个弹出和弦构成音。"
+                    : "系统播放和弦音响，学生依据内听与功能感知判断构成音并逐个弹奏。"}
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-6 rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.025))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                  <div className="mb-4">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/34">Response Mode</div>
-                    <div className="mt-2 text-base font-medium text-white/88">选择学生作答方式</div>
-                  </div>
-                  <Tabs value={mode} onValueChange={setMode}>
-                    <TabsList className="grid w-full grid-cols-2 rounded-[20px] bg-white/[0.05] p-1">
-                      <TabsTrigger value="name" className="rounded-[16px]">
-                        模式一：给音名答题
-                      </TabsTrigger>
-                      <TabsTrigger value="audio" className="rounded-[16px]">
-                        模式二：听和弦答题
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                  <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.04] p-5 text-sm leading-7 text-white/60">
-                    {mode === "name"
-                      ? "系统随机显示和弦名称，学生在虚拟钢琴上逐个弹出和弦构成音。"
-                      : "系统播放和弦音响，学生依据内听与功能感知判断构成音并逐个弹奏。"}
+
+              <div style={{ ...styles.launchCard, gridColumn: "span 6" }}>
+                <div style={styles.smallEyebrow}>Launch Practice</div>
+                <div style={styles.launchRow}>
+                  <div style={styles.launchCount}>10 题</div>
+                  <div style={styles.modeBadge}>
+                    当前模式：{mode === "name" ? "给音名答题" : "听和弦答题"}
                   </div>
                 </div>
-                <div className="col-span-6 flex flex-col justify-center rounded-[30px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.1),rgba(255,255,255,0.045))] p-5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-white/34">Launch Practice</div>
-                  <div className="mt-4 flex items-center justify-center gap-3">
-                    <div className="text-3xl font-semibold tracking-[-0.05em]">10 题</div>
-                    <div className="rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-white/64">
-                      当前模式：{mode === "name" ? "给音名答题" : "听和弦答题"}
-                    </div>
-                  </div>
-                  <Button className="mt-5 h-12 w-full rounded-full bg-white px-8 text-[20px] font-semibold text-black hover:bg-white/90 shadow-[0_14px_30px_rgba(255,255,255,0.16)]">
-                    开始出题
-                  </Button>
-                </div>
+                <button type="button" style={styles.primaryBtn}>
+                  开始出题
+                </button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </Surface>
 
-        <Surface className="overflow-hidden p-0">
-          <Card className="border-0 bg-transparent text-white shadow-none">
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between gap-6 px-1">
-                <div>
-                  <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/38">Classroom Live Data</div>
-                  <CardTitle className="mt-2 flex items-center gap-2 text-[1.18rem] font-medium text-emerald-100">
-                    <Users className="h-5 w-5 text-emerald-300" /> 在线学生列表
-                  </CardTitle>
-                  <div className="mt-2 text-sm leading-6 text-white/48">
-                    实时查看学生参与状态、完成进度、正确率与当前薄弱和弦类型。
-                  </div>
-                </div>
+        <Surface style={{ overflow: "hidden" }}>
+          <div style={styles.cardPad}>
+            <SectionTitle
+              eyebrow="Classroom Live Data"
+              icon={<Users size={18} color="#6ee7b7" />}
+              title="在线学生列表"
+              titleColor="#d1fae5"
+              desc="实时查看学生参与状态、完成进度、正确率与当前薄弱和弦类型。"
+            />
+
+            <div style={styles.innerPanel}>
+              <div style={styles.studentHeader}>
+                <div style={{ color: "#bae6fd" }}>学生姓名</div>
+                <div style={{ color: "#ddd6fe", textAlign: "center" }}>完成进度</div>
+                <div style={{ color: "#a7f3d0", paddingLeft: 24 }}>正确率</div>
+                <div style={{ color: "#fde68a" }}>薄弱和弦类型</div>
               </div>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.025))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <div className="grid grid-cols-[1.1fr_1.55fr_0.8fr_1.35fr] gap-6 px-4 pb-4 text-[1rem] font-semibold tracking-[0.02em] text-white/92">
-                  <div className="text-sky-200">学生姓名</div>
-                  <div className="text-center text-violet-200">完成进度</div>
-                  <div className="pl-6 text-emerald-200">正确率</div>
-                  <div className="text-amber-200">薄弱和弦类型</div>
-                </div>
-                <div className="space-y-3">
-                  {studentData.map((student) => (
-                    <div
-                      key={student.name}
-                      className="grid grid-cols-[1.1fr_1.55fr_0.8fr_1.35fr] items-center gap-6 rounded-[24px] border border-white/10 bg-white/[0.05] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-                    >
-                      <div>
-                        <div className="font-medium text-white/90">{student.name}</div>
-                        <div className="mt-1 text-xs text-white/34">Student Profile</div>
+
+              <div style={{ display: "grid", gap: 12 }}>
+                {studentData.map((student) => (
+                  <div key={student.name} style={styles.studentRow}>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,.92)" }}>
+                        {student.name}
                       </div>
-                      <div className="flex items-center justify-center gap-3">
-                        <Progress value={student.progress} className="h-3 w-[68%] bg-white/10 [&>div]:bg-violet-300" />
-                        <span className="w-14 text-right text-white/78">{progressToScore(student.progress)}</span>
+                      <div style={{ marginTop: 4, fontSize: 12, color: "rgba(255,255,255,.34)" }}>
+                        Student Profile
                       </div>
-                      <div className="pl-6">
-                        <Badge className="rounded-full border border-white/10 bg-white/[0.07] text-white/84 hover:bg-white/[0.09]">
-                          {student.accuracy}%
-                        </Badge>
-                      </div>
-                      <div className="text-white/62">{student.weak}</div>
                     </div>
-                  ))}
-                </div>
+
+                    <div style={styles.progressCol}>
+                      <ProgressBar value={student.progress} />
+                      <span style={styles.progressScore}>{progressToScore(student.progress)}</span>
+                    </div>
+
+                    <div style={{ paddingLeft: 24 }}>
+                      <span style={styles.rateBadge}>{student.accuracy}%</span>
+                    </div>
+
+                    <div style={{ color: "rgba(255,255,255,.64)" }}>{student.weak}</div>
+                  </div>
+                ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </Surface>
 
-        <Surface className="overflow-hidden p-0">
-          <Card className="border-0 bg-transparent text-white shadow-none">
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between gap-6 px-1">
-                <div>
-                  <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/38">Performance Overview</div>
-                  <CardTitle className="mt-2 flex items-center gap-2 text-[1.18rem] font-medium text-amber-100">
-                    <BarChart3 className="h-5 w-5 text-amber-300" /> 每道题全班正确率
-                  </CardTitle>
-                  <div className="mt-2 text-sm leading-6 text-white/48">
-                    从整组题目中快速识别易错题与高区分度题目，为下一轮课堂训练提供依据。
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="grid grid-cols-12 gap-3">
-                <div className="col-span-12 h-80 rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.025))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2f333b" />
-                      <XAxis dataKey="name" stroke="#8b9098" />
-                      <YAxis stroke="#8b9098" domain={[0, 100]} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "rgba(255,255,255,0.96)",
-                          border: "1px solid rgba(15,23,42,0.12)",
-                          borderRadius: "14px",
-                          color: "#111827",
-                          boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
-                        }}
-                        labelStyle={{ color: "#374151", fontWeight: 600 }}
-                        itemStyle={{ color: "#111827", fontWeight: 700 }}
-                        cursor={{ fill: "rgba(255,255,255,0.08)" }}
-                      />
-                      <Bar dataKey="rate" radius={[10, 10, 0, 0]} fill="#f5f5f7" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <Surface style={{ overflow: "hidden" }}>
+          <div style={styles.cardPad}>
+            <SectionTitle
+              eyebrow="Performance Overview"
+              icon={<BarChart3 size={18} color="#fcd34d" />}
+              title="每道题全班正确率"
+              titleColor="#fef3c7"
+              desc="从整组题目中快速识别易错题与高区分度题目，为下一轮课堂训练提供依据。"
+            />
+
+            <div style={{ ...styles.innerPanel, height: 360 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2f333b" />
+                  <XAxis dataKey="name" stroke="#8b9098" />
+                  <YAxis stroke="#8b9098" domain={[0, 100]} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "rgba(255,255,255,0.96)",
+                      border: "1px solid rgba(15,23,42,0.12)",
+                      borderRadius: "14px",
+                      color: "#111827",
+                      boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
+                    }}
+                    labelStyle={{ color: "#374151", fontWeight: 600 }}
+                    itemStyle={{ color: "#111827", fontWeight: 700 }}
+                    cursor={{ fill: "rgba(255,255,255,0.08)" }}
+                  />
+                  <Bar dataKey="rate" radius={[10, 10, 0, 0]} fill="#f5f5f7" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </Surface>
       </div>
     </div>
@@ -526,118 +515,115 @@ function StudentView() {
   );
 
   const instantCorrect = true;
-  const feedbackClass = feedback.status
-    ? "border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05))] text-white/86"
-    : "border-white/12 bg-white/[0.05] text-white/62";
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0b0c10] p-5 text-white">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-[-12rem] h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute right-[-4rem] bottom-[-4rem] h-[20rem] w-[20rem] rounded-full bg-white/5 blur-3xl" />
-      </div>
+    <div style={styles.page}>
+      <div style={styles.bgGlowTopSmall} />
+      <div style={styles.bgGlowRightSmall} />
 
-      <div className="relative mx-auto flex h-[100svh] max-w-[980px] flex-col gap-3 overflow-hidden rounded-[36px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.09),rgba(255,255,255,0.04))] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.28)] backdrop-blur-2xl lg:h-[calc(100svh-76px)]">
-        <div className="shrink-0 rounded-[28px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-          <div className="grid grid-cols-12 gap-3">
-            <div className="col-span-3 rounded-[28px] border border-white/14 bg-white/[0.07] px-4 py-4">
-              <div className="flex items-center gap-2 text-[1.04rem] font-medium text-white/86">
-                <Smartphone className="h-5 w-5 text-white/82" />
+      <div style={styles.studentShell}>
+        <div style={styles.studentTopCard}>
+          <div style={styles.studentTopGrid}>
+            <div style={{ ...styles.studentInfoCard, gridColumn: "span 3" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 17, fontWeight: 500 }}>
+                <Smartphone size={18} />
                 <span>学生端</span>
               </div>
-              <div className="mt-2 text-xs text-white/40">建议横屏操作</div>
+              <div style={{ marginTop: 8, fontSize: 12, color: "rgba(255,255,255,.40)" }}>建议横屏操作</div>
             </div>
-            <div className="col-span-6 rounded-[28px] border border-white/14 bg-white/[0.07] px-4 py-3">
-              <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/38">Student Name</div>
-              <div className="mt-2 flex items-center gap-3">
-                <Input
+
+            <div style={{ ...styles.studentInfoCard, gridColumn: "span 6" }}>
+              <div style={styles.topMiniLabel}>Student Name</div>
+              <div style={styles.nameRow}>
+                <input
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="h-11 flex-1 rounded-[22px] border-white/10 bg-white/[0.04] px-4 text-base text-white placeholder:text-white/28"
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="请输入姓名"
+                  style={styles.nameInput}
                 />
-                <Button className="h-11 rounded-full bg-white px-5 text-sm font-medium text-black hover:bg-white/90">
+                <button type="button" style={styles.confirmBtn}>
                   确定
-                </Button>
+                </button>
               </div>
             </div>
-            <div className="col-span-3 rounded-[28px] border border-white/14 bg-white/[0.07] px-4 py-4">
-              <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/38">Connection</div>
-              <div className="mt-3">
-                <StatusPill online textOnline="已连接" textOffline="未连接" />
+
+            <div style={{ ...styles.studentInfoCard, gridColumn: "span 3" }}>
+              <div style={styles.topMiniLabel}>Connection</div>
+              <div style={{ marginTop: 12 }}>
+                <StatusPill textOnline="已连接" textOffline="未连接" />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid shrink-0 grid-cols-12 gap-3">
-          <Surface className="col-span-4">
-            <div className="space-y-2 p-4">
-              <div className="text-sm text-white/42">题目</div>
+        <div style={styles.studentMidGrid}>
+          <Surface style={{ gridColumn: "span 4" }}>
+            <div style={{ padding: 16 }}>
+              <div style={styles.sectionLabel}>题目</div>
               {mode === "name" ? (
-                <div className="rounded-[26px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.11),rgba(255,255,255,0.05))] p-5 text-[1.4rem] font-semibold leading-9 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                  请弹奏：<span className="text-white">C 属七和弦</span>
+                <div style={styles.questionCard}>
+                  请弹奏：<span style={{ color: "#fff" }}>C 属七和弦</span>
                 </div>
               ) : (
-                <Button className="h-12 w-full rounded-full bg-white text-[15px] font-medium text-black shadow-[0_12px_28px_rgba(255,255,255,0.12)] hover:bg-white/90">
-                  <Play className="mr-2 h-5 w-5" /> 播放
-                </Button>
+                <button type="button" style={{ ...styles.primaryBtn, height: 48, fontSize: 15 }}>
+                  <Play size={18} style={{ marginRight: 8 }} />
+                  播放
+                </button>
               )}
             </div>
           </Surface>
 
-          <Surface className="col-span-3">
-            <div className="p-4">
-              <div className="text-sm text-white/42">答题进度</div>
-              <div className="mt-2 flex items-end gap-5">
+          <Surface style={{ gridColumn: "span 3" }}>
+            <div style={{ padding: 16 }}>
+              <div style={styles.sectionLabel}>答题进度</div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 20, marginTop: 8 }}>
                 <div>
-                  <div className="text-[1.8rem] font-semibold tracking-[-0.04em]">4 / 10</div>
-                  <div className="mt-1 text-xs text-white/36">已完成题目数量</div>
+                  <div style={styles.scoreBig}>4 / 10</div>
+                  <div style={styles.scoreSub}>已完成题目数量</div>
                 </div>
                 <div>
-                  <div className="text-[1.8rem] font-semibold tracking-[-0.04em]">3</div>
-                  <div className="mt-1 text-xs text-white/36">正确题目数量</div>
+                  <div style={styles.scoreBig}>3</div>
+                  <div style={styles.scoreSub}>正确题目数量</div>
                 </div>
               </div>
             </div>
           </Surface>
 
-          <Surface className="col-span-5">
-            <div className="space-y-2 p-4">
-              <div className="flex items-center gap-2 text-sm text-fuchsia-100/80">
-                <BrainCircuit className="h-4 w-4 text-fuchsia-300" />
-                {showAiSummary ? "AI智能反馈 · Gordon 听想" : `第 ${currentQuestion} 题反馈`}
+          <Surface style={{ gridColumn: "span 5" }}>
+            <div style={{ padding: 16 }}>
+              <div style={styles.feedbackHead}>
+                <BrainCircuit size={16} color="#f0abfc" />
+                <span>{showAiSummary ? "AI智能反馈 · Gordon 听想" : `第 ${currentQuestion} 题反馈`}</span>
               </div>
 
               {!showAiSummary ? (
                 <div
-                  className={cx(
-                    "rounded-[24px] border p-4 text-base font-medium",
-                    instantCorrect
-                      ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-100"
-                      : "border-red-300/20 bg-red-400/10 text-red-100",
-                  )}
+                  style={{
+                    ...styles.instantFeedback,
+                    ...(instantCorrect ? styles.instantCorrect : styles.instantWrong),
+                  }}
                 >
                   {instantCorrect ? "回答正确" : "回答错误"}
                 </div>
               ) : (
                 <>
-                  <div className={cx("rounded-[26px] border p-4 text-sm leading-6", feedbackClass)}>
-                    <div className="mb-1 flex items-center gap-2 font-medium">
-                      {feedback.status ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                  <div style={styles.aiFeedbackCard}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, marginBottom: 6 }}>
+                      {feedback.status ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
                       {feedback.status ? "回答正确" : "回答错误"}
                     </div>
                     <div>{feedback.text}</div>
                   </div>
-                  <div className="rounded-[26px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.1),rgba(255,255,255,0.045))] p-4 text-sm leading-6 text-white/62 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                    <div className="mb-2 flex flex-wrap gap-2">
+
+                  <div style={styles.aiAdviceCard}>
+                    <div style={styles.tagRow}>
                       {feedback.tags.map((tag) => (
-                        <span key={tag} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white/72">
+                        <span key={tag} style={styles.tag}>
                           {tag}
                         </span>
                       ))}
                     </div>
-                    <span className="font-medium text-white/86">听想练习建议：</span>
+                    <span style={{ color: "rgba(255,255,255,.88)", fontWeight: 600 }}>听想练习建议：</span>
                     {feedback.advice}
                   </div>
                 </>
@@ -646,47 +632,720 @@ function StudentView() {
           </Surface>
         </div>
 
-        <Surface className="min-h-0 flex-1 overflow-hidden">
-          <Card className="flex h-full flex-col border-0 bg-transparent text-white shadow-none">
-            <CardHeader className="shrink-0 pb-2">
-              <CardTitle className="flex items-center gap-2 text-[1.02rem] font-medium text-cyan-100">
-                <Piano className="h-5 w-5 text-cyan-300" /> 双八度钢琴键盘
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="min-h-0 flex-1 p-4 pt-0">
-              <PianoKeyboard compact showLabels={false} adaptive />
-            </CardContent>
-          </Card>
+        <Surface style={{ minHeight: 0, flex: 1, overflow: "hidden" }}>
+          <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <div style={{ padding: "16px 16px 8px 16px", flexShrink: 0 }}>
+              <div style={{ ...styles.moduleTitle, fontSize: 16, color: "#cffafe" }}>
+                <Piano size={18} color="#67e8f9" />
+                <span>双八度钢琴键盘</span>
+              </div>
+            </div>
+            <div style={{ minHeight: 0, flex: 1, padding: "0 16px 16px 16px" }}>
+              <PianoKeyboard adaptive showLabels={false} />
+            </div>
+          </div>
         </Surface>
       </div>
     </div>
   );
 }
 
-export default function AIChordGamePrototype() {
+export default function App() {
   const [view, setView] = useState("teacher");
 
   return (
-    <div className="min-h-screen bg-[#0b0c10] text-white">
-      <div className="sticky top-0 z-20 border-b border-white/10 bg-[#0b0c10]/72 backdrop-blur-2xl">
-        <div className="mx-auto flex w-full max-w-[1680px] items-center justify-between px-4 py-3">
+    <div style={styles.appRoot}>
+      <div style={styles.topBar}>
+        <div style={styles.topBarInner}>
           <div>
-            <div className="text-[1.4rem] font-semibold tracking-[-0.03em] text-white">ChordMasterAI Pro</div>
-            <div className="text-xs text-sky-200/50">Unified UI Prototype · ChordMasterAI Pro</div>
+            <div style={styles.topBarTitle}>ChordMasterAI Pro</div>
+            <div style={styles.topBarSub}>Unified UI Prototype · ChordMasterAI Pro</div>
           </div>
-          <Tabs value={view} onValueChange={setView}>
-            <TabsList className="rounded-full bg-white/[0.04] p-1">
-              <TabsTrigger value="teacher" className="rounded-full px-4">
-                <Monitor className="mr-2 h-4 w-4" />教师端
-              </TabsTrigger>
-              <TabsTrigger value="student" className="rounded-full px-4">
-                <Smartphone className="mr-2 h-4 w-4" />学生端
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+
+          <div style={styles.switchWrap}>
+            <button
+              type="button"
+              onClick={() => setView("teacher")}
+              style={{
+                ...styles.switchBtn,
+                ...(view === "teacher" ? styles.switchBtnActive : {}),
+              }}
+            >
+              <Monitor size={16} />
+              <span>教师端</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("student")}
+              style={{
+                ...styles.switchBtn,
+                ...(view === "student" ? styles.switchBtnActive : {}),
+              }}
+            >
+              <Smartphone size={16} />
+              <span>学生端</span>
+            </button>
+          </div>
         </div>
       </div>
+
       {view === "teacher" ? <TeacherView /> : <StudentView />}
     </div>
   );
 }
+
+const styles: Record<string, CSSProperties> = {
+  appRoot: {
+    minHeight: "100vh",
+    background: "#0b0c10",
+    color: "#fff",
+    overflowX: "hidden",
+    fontFamily:
+      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  },
+  topBar: {
+    position: "sticky",
+    top: 0,
+    zIndex: 20,
+    borderBottom: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(11,12,16,0.72)",
+    backdropFilter: "blur(20px)",
+  },
+  topBarInner: {
+    maxWidth: 1680,
+    width: "100%",
+    margin: "0 auto",
+    padding: "12px 16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+  },
+  topBarTitle: {
+    fontSize: 22,
+    fontWeight: 600,
+    letterSpacing: "-0.03em",
+  },
+  topBarSub: {
+    fontSize: 12,
+    color: "rgba(186,230,253,.5)",
+  },
+  switchWrap: {
+    display: "flex",
+    gap: 8,
+    borderRadius: 999,
+    padding: 4,
+    background: "rgba(255,255,255,.04)",
+  },
+  switchBtn: {
+    border: 0,
+    borderRadius: 999,
+    padding: "10px 16px",
+    background: "transparent",
+    color: "rgba(255,255,255,.72)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    cursor: "pointer",
+  },
+  switchBtnActive: {
+    background: "rgba(255,255,255,.12)",
+    color: "#fff",
+  },
+  page: {
+    position: "relative",
+    minHeight: "100vh",
+    overflow: "hidden",
+    background: "#0b0c10",
+    padding: "20px 16px",
+  },
+  container: {
+    position: "relative",
+    width: "100%",
+    maxWidth: 1680,
+    margin: "0 auto",
+    display: "grid",
+    gap: 24,
+  },
+  hero: {
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 40,
+    border: "1px solid rgba(255,255,255,.12)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.045))",
+    padding: 40,
+    boxShadow: "0 36px 100px rgba(0,0,0,.30)",
+    backdropFilter: "blur(20px)",
+  },
+  heroGlow: {
+    position: "absolute",
+    left: "50%",
+    top: "-30%",
+    width: 352,
+    height: 352,
+    transform: "translateX(-50%)",
+    borderRadius: "50%",
+    background: "rgba(255,255,255,.12)",
+    filter: "blur(48px)",
+  },
+  heroContent: {
+    position: "relative",
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 32,
+  },
+  heroEyebrow: {
+    fontSize: 14,
+    fontWeight: 500,
+    textTransform: "uppercase",
+    letterSpacing: ".22em",
+    color: "rgba(186,230,253,.6)",
+  },
+  heroTitle: {
+    margin: "16px 0 0 0",
+    fontSize: "clamp(36px, 6vw, 68px)",
+    lineHeight: 0.95,
+    fontWeight: 600,
+    letterSpacing: "-0.07em",
+  },
+  heroDesc: {
+    marginTop: 20,
+    maxWidth: 760,
+    fontSize: 18,
+    lineHeight: 1.8,
+    color: "rgba(255,255,255,.58)",
+  },
+  surface: {
+    minWidth: 0,
+    borderRadius: 32,
+    border: "1px solid rgba(255,255,255,.12)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.04))",
+    boxShadow: "0 28px 80px rgba(0,0,0,.28)",
+    backdropFilter: "blur(20px)",
+  },
+  cardPad: {
+    padding: 24,
+  },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: 500,
+    textTransform: "uppercase",
+    letterSpacing: ".2em",
+    color: "rgba(255,255,255,.38)",
+  },
+  moduleTitle: {
+    marginTop: 8,
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 19,
+    fontWeight: 500,
+  },
+  moduleDesc: {
+    marginTop: 10,
+    fontSize: 14,
+    lineHeight: 1.7,
+    color: "rgba(255,255,255,.48)",
+  },
+  innerPanel: {
+    marginTop: 12,
+    borderRadius: 30,
+    border: "1px solid rgba(255,255,255,.10)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025))",
+    padding: 20,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
+  },
+  innerPanelHead: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 16,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  innerPanelTitle: {
+    marginTop: 8,
+    fontSize: 16,
+    fontWeight: 500,
+    color: "rgba(255,255,255,.88)",
+  },
+  smallEyebrow: {
+    fontSize: 11,
+    fontWeight: 500,
+    textTransform: "uppercase",
+    letterSpacing: ".18em",
+    color: "rgba(255,255,255,.34)",
+  },
+  countBadge: {
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,.10)",
+    background: "rgba(255,255,255,.06)",
+    padding: "8px 12px",
+    fontSize: 14,
+    color: "rgba(255,255,255,.70)",
+  },
+  chordGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: 14,
+  },
+  chordItem: {
+    borderRadius: 22,
+    border: "1px solid rgba(255,255,255,.08)",
+    background: "rgba(255,255,255,.035)",
+    color: "rgba(255,255,255,.82)",
+    padding: "14px 14px",
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    cursor: "pointer",
+    textAlign: "left",
+  },
+  chordItemChecked: {
+    border: "1px solid rgba(255,255,255,.14)",
+    background: "rgba(255,255,255,.09)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
+  },
+  grid12: {
+    display: "grid",
+    gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+    gap: 16,
+    width: "100%",
+  },
+  qrShell: {
+    marginTop: 12,
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 34,
+    border: "1px solid rgba(255,255,255,.12)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.11), rgba(255,255,255,.04))",
+    padding: 24,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
+  },
+  qrGlow: {
+    position: "absolute",
+    left: "50%",
+    top: "-18%",
+    width: 176,
+    height: 176,
+    transform: "translateX(-50%)",
+    borderRadius: "50%",
+    background: "rgba(255,255,255,.12)",
+    filter: "blur(48px)",
+  },
+  qrPanel: {
+    position: "relative",
+    margin: "0 auto",
+    width: "min(100%, 288px)",
+    aspectRatio: "1 / 1",
+    borderRadius: 30,
+    border: "1px solid rgba(255,255,255,.14)",
+    background: "radial-gradient(circle at top, rgba(255,255,255,.16), rgba(255,255,255,.03))",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  qrImage: {
+    width: 240,
+    height: 240,
+    borderRadius: 18,
+    background: "#fff",
+    padding: 12,
+    objectFit: "cover",
+  },
+  segmentWrap: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: 4,
+    borderRadius: 20,
+    background: "rgba(255,255,255,.05)",
+    padding: 4,
+    marginTop: 18,
+  },
+  segmentBtn: {
+    border: 0,
+    borderRadius: 16,
+    background: "transparent",
+    color: "rgba(255,255,255,.72)",
+    padding: "13px 16px",
+    cursor: "pointer",
+    fontSize: 14,
+    fontWeight: 500,
+  },
+  segmentBtnActive: {
+    background: "rgba(255,255,255,.12)",
+    color: "#fff",
+  },
+  softPanel: {
+    borderRadius: 24,
+    border: "1px solid rgba(255,255,255,.10)",
+    background: "rgba(255,255,255,.04)",
+    padding: 20,
+    fontSize: 14,
+    lineHeight: 1.9,
+    color: "rgba(255,255,255,.60)",
+  },
+  launchCard: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    borderRadius: 30,
+    border: "1px solid rgba(255,255,255,.12)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.045))",
+    padding: 20,
+    textAlign: "center",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
+  },
+  launchRow: {
+    marginTop: 16,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  launchCount: {
+    fontSize: 30,
+    fontWeight: 600,
+    letterSpacing: "-0.05em",
+  },
+  modeBadge: {
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,.10)",
+    background: "rgba(255,255,255,.06)",
+    padding: "8px 14px",
+    fontSize: 14,
+    color: "rgba(255,255,255,.64)",
+  },
+  primaryBtn: {
+    marginTop: 20,
+    height: 48,
+    width: "100%",
+    border: 0,
+    borderRadius: 999,
+    background: "#fff",
+    color: "#000",
+    fontSize: 20,
+    fontWeight: 700,
+    cursor: "pointer",
+    boxShadow: "0 14px 30px rgba(255,255,255,.16)",
+  },
+  studentHeader: {
+    display: "grid",
+    gridTemplateColumns: "1.1fr 1.55fr 0.8fr 1.35fr",
+    gap: 24,
+    padding: "0 16px 16px 16px",
+    fontSize: 16,
+    fontWeight: 600,
+    letterSpacing: ".02em",
+    color: "rgba(255,255,255,.92)",
+  },
+  studentRow: {
+    display: "grid",
+    gridTemplateColumns: "1.1fr 1.55fr 0.8fr 1.35fr",
+    gap: 24,
+    alignItems: "center",
+    borderRadius: 24,
+    border: "1px solid rgba(255,255,255,.10)",
+    background: "rgba(255,255,255,.05)",
+    padding: 16,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
+  },
+  progressCol: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  progressTrack: {
+    width: "68%",
+    height: 12,
+    borderRadius: 999,
+    background: "rgba(255,255,255,.10)",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    background: "#c4b5fd",
+  },
+  progressScore: {
+    width: 56,
+    textAlign: "right",
+    color: "rgba(255,255,255,.78)",
+  },
+  rateBadge: {
+    display: "inline-block",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,.10)",
+    background: "rgba(255,255,255,.07)",
+    padding: "7px 12px",
+    color: "rgba(255,255,255,.84)",
+    fontSize: 14,
+  },
+  statusPill: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,.12)",
+    padding: "7px 12px",
+    fontSize: 14,
+  },
+  statusOnline: {
+    background: "rgba(255,255,255,.05)",
+    color: "rgba(255,255,255,.84)",
+  },
+  statusOffline: {
+    background: "rgba(255,255,255,.04)",
+    color: "rgba(255,255,255,.55)",
+  },
+  keyboardWrap: {
+    position: "relative",
+    margin: "0 auto",
+    width: "100%",
+    borderRadius: 28,
+    border: "1px solid rgba(255,255,255,.14)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03))",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
+  },
+  whiteKey: {
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    border: "1px solid rgba(0,0,0,.08)",
+    background: "linear-gradient(180deg, #ffffff, #f4f4f5)",
+    paddingBottom: 8,
+    fontSize: 10,
+    fontWeight: 500,
+    color: "#3f3f46",
+    boxShadow: "0 10px 18px rgba(0,0,0,.08)",
+  },
+  blackKey: {
+    position: "absolute",
+    top: 0,
+    zIndex: 10,
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    borderRadius: "0 0 10px 10px",
+    border: "1px solid rgba(0,0,0,.35)",
+    background: "linear-gradient(180deg, #1d1d1f, #050505)",
+    paddingBottom: 6,
+    fontSize: 9,
+    color: "#d4d4d8",
+    boxShadow: "0 10px 24px rgba(0,0,0,.34)",
+  },
+  studentShell: {
+    position: "relative",
+    maxWidth: 980,
+    margin: "0 auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    height: "calc(100svh - 76px)",
+    overflow: "hidden",
+    borderRadius: 36,
+    border: "1px solid rgba(255,255,255,.12)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04))",
+    padding: 16,
+    boxShadow: "0 30px 90px rgba(0,0,0,.28)",
+    backdropFilter: "blur(20px)",
+  },
+  studentTopCard: {
+    flexShrink: 0,
+    borderRadius: 28,
+    border: "1px solid rgba(255,255,255,.14)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.05))",
+    padding: 12,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+  },
+  studentTopGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+    gap: 12,
+  },
+  studentInfoCard: {
+    borderRadius: 28,
+    border: "1px solid rgba(255,255,255,.14)",
+    background: "rgba(255,255,255,.07)",
+    padding: "16px 16px",
+  },
+  topMiniLabel: {
+    fontSize: 11,
+    fontWeight: 500,
+    textTransform: "uppercase",
+    letterSpacing: ".18em",
+    color: "rgba(255,255,255,.38)",
+  },
+  nameRow: {
+    marginTop: 8,
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  nameInput: {
+    height: 44,
+    flex: 1,
+    borderRadius: 22,
+    border: "1px solid rgba(255,255,255,.10)",
+    background: "rgba(255,255,255,.04)",
+    color: "#fff",
+    padding: "0 16px",
+    outline: "none",
+    fontSize: 16,
+  },
+  confirmBtn: {
+    height: 44,
+    borderRadius: 999,
+    border: 0,
+    background: "#fff",
+    color: "#000",
+    padding: "0 20px",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  studentMidGrid: {
+    flexShrink: 0,
+    display: "grid",
+    gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+    gap: 12,
+  },
+  sectionLabel: {
+    fontSize: 14,
+    color: "rgba(255,255,255,.42)",
+  },
+  questionCard: {
+    marginTop: 8,
+    borderRadius: 26,
+    border: "1px solid rgba(255,255,255,.14)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.11), rgba(255,255,255,.05))",
+    padding: 20,
+    fontSize: "1.4rem",
+    fontWeight: 600,
+    lineHeight: 1.8,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+  },
+  scoreBig: {
+    fontSize: "1.8rem",
+    fontWeight: 600,
+    letterSpacing: "-0.04em",
+  },
+  scoreSub: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "rgba(255,255,255,.36)",
+  },
+  feedbackHead: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 14,
+    color: "rgba(250,232,255,.8)",
+    marginBottom: 8,
+  },
+  instantFeedback: {
+    borderRadius: 24,
+    border: "1px solid",
+    padding: 16,
+    fontSize: 16,
+    fontWeight: 600,
+  },
+  instantCorrect: {
+    borderColor: "rgba(110,231,183,.20)",
+    background: "rgba(52,211,153,.10)",
+    color: "#d1fae5",
+  },
+  instantWrong: {
+    borderColor: "rgba(252,165,165,.20)",
+    background: "rgba(248,113,113,.10)",
+    color: "#fee2e2",
+  },
+  aiFeedbackCard: {
+    borderRadius: 26,
+    border: "1px solid rgba(255,255,255,.14)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.05))",
+    padding: 16,
+    fontSize: 14,
+    lineHeight: 1.7,
+    color: "rgba(255,255,255,.86)",
+  },
+  aiAdviceCard: {
+    marginTop: 8,
+    borderRadius: 26,
+    border: "1px solid rgba(255,255,255,.14)",
+    background: "linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.045))",
+    padding: 16,
+    fontSize: 14,
+    lineHeight: 1.7,
+    color: "rgba(255,255,255,.62)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
+  },
+  tagRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 8,
+  },
+  tag: {
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,.10)",
+    background: "rgba(255,255,255,.04)",
+    padding: "4px 10px",
+    fontSize: 12,
+    color: "rgba(255,255,255,.72)",
+  },
+  bgGlowTop: {
+    position: "absolute",
+    left: "50%",
+    top: "-18rem",
+    width: "34rem",
+    height: "34rem",
+    transform: "translateX(-50%)",
+    borderRadius: "50%",
+    background: "rgba(255,255,255,.10)",
+    filter: "blur(48px)",
+  },
+  bgGlowLeft: {
+    position: "absolute",
+    left: "-8rem",
+    top: "6rem",
+    width: "24rem",
+    height: "24rem",
+    borderRadius: "50%",
+    background: "rgba(255,255,255,.05)",
+    filter: "blur(48px)",
+  },
+  bgGlowRight: {
+    position: "absolute",
+    right: "-8rem",
+    bottom: "-4rem",
+    width: "24rem",
+    height: "24rem",
+    borderRadius: "50%",
+    background: "rgba(255,255,255,.05)",
+    filter: "blur(48px)",
+  },
+  bgGlowTopSmall: {
+    position: "absolute",
+    left: "50%",
+    top: "-12rem",
+    width: "28rem",
+    height: "28rem",
+    transform: "translateX(-50%)",
+    borderRadius: "50%",
+    background: "rgba(255,255,255,.10)",
+    filter: "blur(48px)",
+  },
+  bgGlowRightSmall: {
+    position: "absolute",
+    right: "-4rem",
+    bottom: "-4rem",
+    width: "20rem",
+    height: "20rem",
+    borderRadius: "50%",
+    background: "rgba(255,255,255,.05)",
+    filter: "blur(48px)",
+  },
+};
