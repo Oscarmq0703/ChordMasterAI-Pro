@@ -25,7 +25,7 @@ import {
 } from "recharts";
 
 const API_BASE =
-  import.meta.env.VITE_API_BASE || "http://localhost:10000";
+  import.meta.env.VITE_API_BASE || "https://chordmasterai-backend.onrender.com";
 
 function getSessionIdFromUrl() {
   if (typeof window === "undefined") return "";
