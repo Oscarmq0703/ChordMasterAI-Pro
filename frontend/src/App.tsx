@@ -33,6 +33,23 @@ function getSessionIdFromUrl() {
   return url.searchParams.get("session") || "";
 }
 
+function getStoredStudent(sessionId: string) {
+  if (typeof window === "undefined" || !sessionId) return null;
+  const raw = localStorage.getItem(`cm_student_${sessionId}`);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredStudent(sessionId: string, payload: { studentId: string; name: string }) {
+  if (typeof window === "undefined" || !sessionId) return;
+  localStorage.setItem(`cm_student_${sessionId}`, JSON.stringify(payload));
+}
+
 type StudentRow = {
   name: string;
   progress: number;
@@ -68,17 +85,40 @@ type TeacherSession = {
     typeLabel: string;
     root: string;
   }>;
-  students?: any[];
+  students?: Array<{
+    studentId: string;
+    name: string;
+    joinedAt?: string;
+    lastActiveAt?: string;
+    answeredCount: number;
+    progress: number;
+    accuracy: number;
+    correctCount: number;
+    wrongCount: number;
+    weak: string;
+    currentQuestionIndex: number;
+  }>;
+  chartData?: Array<{
+    name: string;
+    rate: number;
+    total: number;
+    correct: number;
+    displayName: string;
+  }>;
   stats?: Record<string, any>;
 };
 
 type StudentSession = {
   sessionId: string;
   status: string;
-  createdAt?: string;
-  startedAt?: string | null;
-  currentQuestionIndex: number;
+  studentId: string;
+  name: string;
   totalQuestions: number;
+  currentQuestionIndex: number;
+  completedCount: number;
+  correctCount: number;
+  wrongCount: number;
+  isFinished: boolean;
   currentQuestion: {
     id: string;
     index: number;
@@ -87,6 +127,17 @@ type StudentSession = {
     type: string;
     typeLabel: string;
     root: string;
+  } | null;
+  lastAnswer?: {
+    questionId: string;
+    questionIndex: number;
+    prompt: string;
+    displayName: string;
+    type: string;
+    typeLabel: string;
+    answer: string;
+    isCorrect: boolean;
+    submittedAt: string;
   } | null;
 };
 
@@ -533,29 +584,34 @@ function TeacherView({
               </div>
 
               <div style={{ display: "grid", gap: 12 }}>
-                {studentData.map((student) => (
-                  <div key={student.name} style={styles.studentRow}>
-                    <div>
-                      <div style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,.92)" }}>
-                        {student.name}
-                      </div>
-                      <div style={{ marginTop: 4, fontSize: 12, color: "rgba(255,255,255,.34)" }}>
-                        Student Profile
-                      </div>
-                    </div>
+{!teacherSession?.students?.length ? (
+  <div style={{ color: "rgba(255,255,255,.52)", padding: "8px 4px" }}>
+    暂无学生加入课堂
+  </div>
+) : null}           
+    {(teacherSession?.students?.length ? teacherSession.students : []).map((student: any) => (
+  <div key={student.studentId || student.name} style={styles.studentRow}>
+    <div>
+      <div style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,.92)" }}>
+        {student.name}
+      </div>
+      <div style={{ marginTop: 4, fontSize: 12, color: "rgba(255,255,255,.34)" }}>
+        已完成 {student.answeredCount} 题
+      </div>
+    </div>
 
-                    <div style={styles.progressCol}>
-                      <ProgressBar value={student.progress} />
-                      <span style={styles.progressScore}>{progressToScore(student.progress)}</span>
-                    </div>
+    <div style={styles.progressCol}>
+      <ProgressBar value={student.progress || 0} />
+      <span style={styles.progressScore}>{progressToScore(student.progress || 0)}</span>
+    </div>
 
-                    <div style={{ paddingLeft: 24 }}>
-                      <span style={styles.rateBadge}>{student.accuracy}%</span>
-                    </div>
+    <div style={{ paddingLeft: 24 }}>
+      <span style={styles.rateBadge}>{student.accuracy || 0}%</span>
+    </div>
 
-                    <div style={{ color: "rgba(255,255,255,.64)" }}>{student.weak}</div>
-                  </div>
-                ))}
+    <div style={{ color: "rgba(255,255,255,.64)" }}>{student.weak || "—"}</div>
+  </div>
+))}
               </div>
             </div>
           </div>
@@ -573,7 +629,7 @@ function TeacherView({
 
             <div style={{ ...styles.innerPanel, height: 360 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
+                <BarChart data={teacherSession?.chartData?.length ? teacherSession.chartData : chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#2f333b" />
                   <XAxis dataKey="name" stroke="#8b9098" />
                   <YAxis stroke="#8b9098" domain={[0, 100]} />
@@ -602,14 +658,34 @@ function TeacherView({
 
 function StudentView({
   sessionId,
+  studentId,
+  studentName,
+  setStudentName,
   studentSession,
   sessionError,
+  joinStudentSession,
+  answerInput,
+  setAnswerInput,
+  submitStudentAnswer,
+  answerSubmitting,
+  answerFeedback,
 }: {
   sessionId: string;
+  studentId: string;
+  studentName: string;
+  setStudentName: React.Dispatch<React.SetStateAction<string>>;
   studentSession: StudentSession | null;
   sessionError: string;
+  joinStudentSession: () => Promise<void>;
+  answerInput: string;
+  setAnswerInput: React.Dispatch<React.SetStateAction<string>>;
+  submitStudentAnswer: () => Promise<void>;
+  answerSubmitting: boolean;
+  answerFeedback: {
+    type: "" | "success" | "error";
+    message: string;
+  };
 }) {
-  const [name, setName] = useState("张同学");
   const [showAiSummary] = useState(false);
 
   const feedback: Feedback = useMemo(
@@ -623,8 +699,6 @@ function StudentView({
     }),
     [],
   );
-
-  const instantCorrect = true;
 
   return (
     <div style={styles.page}>
@@ -646,13 +720,13 @@ function StudentView({
               <div style={styles.topMiniLabel}>Student Name</div>
               <div style={styles.nameRow}>
                 <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
                   placeholder="请输入姓名"
                   style={styles.nameInput}
                 />
-                <button type="button" style={styles.confirmBtn}>
-                  确定
+                <button type="button" style={styles.confirmBtn} onClick={joinStudentSession}>
+                  {studentId ? "已加入" : "确定"}
                 </button>
               </div>
             </div>
@@ -706,6 +780,10 @@ function StudentView({
                   <div style={{ fontSize: 14, color: "#fcd34d" }}>
                     教师尚未开始出题，请稍候…
                   </div>
+                ) : studentSession.isFinished ? (
+                  <div style={{ fontSize: 16, color: "#86efac", fontWeight: 700 }}>
+                    本轮题目已完成
+                  </div>
                 ) : (
                   <>
                     <div style={{ fontSize: 13, color: "rgba(255,255,255,.65)", marginBottom: 8 }}>
@@ -731,68 +809,114 @@ function StudentView({
             </div>
           </Surface>
 
-          <Surface style={{ gridColumn: "span 3" }}>
+          <Surface style={{ gridColumn: "span 4" }}>
+            <div style={{ padding: 16 }}>
+              <div style={styles.sectionLabel}>提交答案</div>
+
+              <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+                <input
+                  value={answerInput}
+                  onChange={(e) => setAnswerInput(e.target.value)}
+                  placeholder="请输入答案，例如 C7 / Am / F#maj7"
+                  style={styles.nameInput}
+                  disabled={!studentId || !studentSession?.currentQuestion || studentSession?.isFinished}
+                />
+
+                <button
+                  type="button"
+                  style={styles.confirmBtn}
+                  onClick={submitStudentAnswer}
+                  disabled={!studentId || answerSubmitting || !studentSession?.currentQuestion}
+                >
+                  {answerSubmitting ? "提交中..." : "提交答案"}
+                </button>
+
+                {answerFeedback.message ? (
+                  <div
+                    style={{
+                      borderRadius: 16,
+                      padding: "12px 14px",
+                      fontSize: 14,
+                      border:
+                        answerFeedback.type === "success"
+                          ? "1px solid rgba(110,231,183,.24)"
+                          : "1px solid rgba(248,113,113,.24)",
+                      background:
+                        answerFeedback.type === "success"
+                          ? "rgba(52,211,153,.10)"
+                          : "rgba(248,113,113,.10)",
+                      color: answerFeedback.type === "success" ? "#d1fae5" : "#fee2e2",
+                    }}
+                  >
+                    {answerFeedback.message}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </Surface>
+
+          <Surface style={{ gridColumn: "span 4" }}>
             <div style={{ padding: 16 }}>
               <div style={styles.sectionLabel}>答题进度</div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 20, marginTop: 8 }}>
                 <div>
                   <div style={styles.scoreBig}>
                     {studentSession?.totalQuestions
-                      ? `${studentSession.currentQuestionIndex + 1} / ${studentSession.totalQuestions}`
+                      ? `${studentSession.completedCount} / ${studentSession.totalQuestions}`
                       : "0 / 10"}
                   </div>
-                  <div style={styles.scoreSub}>当前题目进度</div>
+                  <div style={styles.scoreSub}>已提交题数</div>
                 </div>
                 <div>
-                  <div style={styles.scoreBig}>--</div>
+                  <div style={styles.scoreBig}>{studentSession?.correctCount ?? 0}</div>
                   <div style={styles.scoreSub}>正确题目数量</div>
                 </div>
               </div>
             </div>
           </Surface>
-
-          <Surface style={{ gridColumn: "span 5" }}>
-            <div style={{ padding: 16 }}>
-              <div style={styles.feedbackHead}>
-                <BrainCircuit size={16} color="#f0abfc" />
-                <span>{showAiSummary ? "AI智能反馈 · Gordon 听想" : "即时反馈区（下一步接答题判定）"}</span>
-              </div>
-
-              {!showAiSummary ? (
-                <div
-                  style={{
-                    ...styles.instantFeedback,
-                    ...(instantCorrect ? styles.instantCorrect : styles.instantWrong),
-                  }}
-                >
-                  当前版本已完成“同步题目”，下一步接“学生提交答案 + 正误判断”
-                </div>
-              ) : (
-                <>
-                  <div style={styles.aiFeedbackCard}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, marginBottom: 6 }}>
-                      {feedback.status ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-                      {feedback.status ? "回答正确" : "回答错误"}
-                    </div>
-                    <div>{feedback.text}</div>
-                  </div>
-
-                  <div style={styles.aiAdviceCard}>
-                    <div style={styles.tagRow}>
-                      {feedback.tags.map((tag) => (
-                        <span key={tag} style={styles.tag}>
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    <span style={{ color: "rgba(255,255,255,.88)", fontWeight: 600 }}>听想练习建议：</span>
-                    {feedback.advice}
-                  </div>
-                </>
-              )}
-            </div>
-          </Surface>
         </div>
+
+        <Surface>
+          <div style={{ padding: 16 }}>
+            <div style={styles.feedbackHead}>
+              <BrainCircuit size={16} color="#f0abfc" />
+              <span>{showAiSummary ? "AI智能反馈 · Gordon 听想" : "即时反馈区"}</span>
+            </div>
+
+            {!showAiSummary ? (
+              <div
+                style={{
+                  ...styles.instantFeedback,
+                  ...(answerFeedback.type === "error" ? styles.instantWrong : styles.instantCorrect),
+                }}
+              >
+                {answerFeedback.message || "提交答案后，这里会显示本题正误反馈"}
+              </div>
+            ) : (
+              <>
+                <div style={styles.aiFeedbackCard}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, marginBottom: 6 }}>
+                    {feedback.status ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+                    {feedback.status ? "回答正确" : "回答错误"}
+                  </div>
+                  <div>{feedback.text}</div>
+                </div>
+
+                <div style={styles.aiAdviceCard}>
+                  <div style={styles.tagRow}>
+                    {feedback.tags.map((tag) => (
+                      <span key={tag} style={styles.tag}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  <span style={{ color: "rgba(255,255,255,.88)", fontWeight: 600 }}>听想练习建议：</span>
+                  {feedback.advice}
+                </div>
+              </>
+            )}
+          </div>
+        </Surface>
 
         <Surface style={{ minHeight: 320, flex: 1, overflow: "visible" }}>
           <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -811,7 +935,6 @@ function StudentView({
     </div>
   );
 }
-
 export default function App() {
   const initialView =
     typeof window !== "undefined" && window.location.pathname.startsWith("/student")
@@ -824,6 +947,17 @@ export default function App() {
   const [studentSession, setStudentSession] = useState<StudentSession | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState("");
+const [studentId, setStudentId] = useState("");
+const [studentName, setStudentName] = useState("张同学");
+const [answerInput, setAnswerInput] = useState("");
+const [answerSubmitting, setAnswerSubmitting] = useState(false);
+const [answerFeedback, setAnswerFeedback] = useState<{
+  type: "" | "success" | "error";
+  message: string;
+}>({
+  type: "",
+  message: "",
+});
   const [selectedChordTypes, setSelectedChordTypes] = useState<string[]>([
     "major",
     "minor",
@@ -861,16 +995,116 @@ export default function App() {
     setTeacherSession(data.session);
   }
 
-  async function fetchStudentSession(currentSessionId: string) {
-    const res = await fetch(`${API_BASE}/api/session/${currentSessionId}/public`);
+ async function fetchStudentSession(currentSessionId: string, currentStudentId: string) {
+  const res = await fetch(
+    `${API_BASE}/api/session/${currentSessionId}/student/${currentStudentId}`
+  );
+  const data = await res.json();
+
+  if (!res.ok || !data.ok) {
+    throw new Error(data.error || "获取学生课堂失败");
+  }
+
+  setStudentSession(data.studentSession);
+}
+
+async function submitStudentAnswer() {
+  try {
+    if (!sessionId || !studentId) {
+      setSessionError("请先加入课堂");
+      return;
+    }
+
+    if (!answerInput.trim()) {
+      setAnswerFeedback({
+        type: "error",
+        message: "请先输入答案",
+      });
+      return;
+    }
+
+    setAnswerSubmitting(true);
+    setAnswerFeedback({
+      type: "",
+      message: "",
+    });
+
+    const res = await fetch(`${API_BASE}/api/session/${sessionId}/answer`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        studentId,
+        answer: answerInput.trim(),
+      }),
+    });
+
     const data = await res.json();
 
     if (!res.ok || !data.ok) {
-      throw new Error(data.error || "获取学生课堂失败");
+      throw new Error(data.error || "提交答案失败");
     }
 
-    setStudentSession(data.session);
+    setStudentSession(data.studentSession);
+    setTeacherSession(data.teacherSession);
+    setAnswerInput("");
+    setAnswerFeedback({
+      type: data.result?.isCorrect ? "success" : "error",
+      message: data.result?.isCorrect
+        ? `回答正确，正确答案：${data.result.correctAnswer}`
+        : `回答错误，正确答案：${data.result.correctAnswer}`,
+    });
+  } catch (error: any) {
+    setAnswerFeedback({
+      type: "error",
+      message: error.message || "提交答案失败",
+    });
+  } finally {
+    setAnswerSubmitting(false);
   }
+}
+
+async function joinStudentSession() {
+  try {
+    if (!sessionId) {
+      setSessionError("缺少课堂号");
+      return;
+    }
+
+    if (!studentName.trim()) {
+      setSessionError("请输入姓名");
+      return;
+    }
+
+    setSessionError("");
+
+    const res = await fetch(`${API_BASE}/api/session/${sessionId}/join`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: studentName.trim(),
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || "加入课堂失败");
+    }
+
+    setStudentId(data.studentId);
+    setStudentSession(data.studentSession);
+    setStoredStudent(sessionId, {
+      studentId: data.studentId,
+      name: studentName.trim(),
+    });
+  } catch (error: any) {
+    setSessionError(error.message || "加入课堂失败");
+  }
+}
 
   async function startTeacherQuiz() {
     try {
@@ -902,45 +1136,36 @@ export default function App() {
     }
   }
 
-  useEffect(() => {
-    if (view !== "teacher" || !sessionId) return;
+useEffect(() => {
+  if (view !== "student" || !sessionId) return;
 
-    fetchTeacherSession(sessionId).catch((err) => {
+  const stored = getStoredStudent(sessionId);
+
+  if (stored?.studentId) {
+    setStudentId(stored.studentId);
+    setStudentName(stored.name || "张同学");
+
+    fetchStudentSession(sessionId, stored.studentId).catch((err) => {
       console.error(err);
+      setSessionError("课堂存在，但学生状态获取失败");
     });
 
     const timer = setInterval(() => {
-      fetchTeacherSession(sessionId).catch((err) => {
+      fetchStudentSession(sessionId, stored.studentId).catch((err) => {
         console.error(err);
       });
     }, 2000);
 
     return () => clearInterval(timer);
-  }, [view, sessionId]);
-
-  useEffect(() => {
-    if (view !== "student" || !sessionId) return;
-
-    fetchStudentSession(sessionId).catch((err) => {
-      console.error(err);
-      setSessionError("课堂不存在或尚未开始");
-    });
-
-    const timer = setInterval(() => {
-      fetchStudentSession(sessionId).catch((err) => {
-        console.error(err);
-      });
-    }, 2000);
-
-    return () => clearInterval(timer);
-  }, [view, sessionId]);
+  }
+}, [view, sessionId]);
 
   const studentJoinUrl = useMemo(() => {
     if (!sessionId || typeof window === "undefined") return "";
     return `${window.location.origin}/student?session=${sessionId}`;
   }, [sessionId]);
 
-  return (
+    return (
     <div style={styles.appRoot}>
       <div style={styles.topBar}>
         <div style={styles.topBarInner}>
@@ -990,8 +1215,17 @@ export default function App() {
       ) : (
         <StudentView
           sessionId={sessionId}
+          studentId={studentId}
+          studentName={studentName}
+          setStudentName={setStudentName}
           studentSession={studentSession}
           sessionError={sessionError}
+          joinStudentSession={joinStudentSession}
+          answerInput={answerInput}
+          setAnswerInput={setAnswerInput}
+          submitStudentAnswer={submitStudentAnswer}
+          answerSubmitting={answerSubmitting}
+          answerFeedback={answerFeedback}
         />
       )}
     </div>
