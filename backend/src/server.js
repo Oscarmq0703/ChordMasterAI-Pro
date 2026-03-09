@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import redis from "./redis.js";
+import { redis } from "./redis.js";
 
 const app = express();
 const PORT = process.env.PORT || 10000;
