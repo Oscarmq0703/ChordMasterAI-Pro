@@ -151,38 +151,6 @@ const chordTypeOptions = [
   { label: "小七和弦", value: "min7" },
 ];
 
-<div style={{ display: "grid", gap: 12 }}>
-  {!teacherSession?.students?.length ? (
-    <div style={{ color: "rgba(255,255,255,.52)", padding: "8px 4px" }}>
-      暂无学生加入课堂
-    </div>
-  ) : null}
-
-  {(teacherSession?.students || []).map((student: any) => (
-    <div key={student.studentId || student.name} style={styles.studentRow}>
-      <div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,.92)" }}>
-          {student.name}
-        </div>
-        <div style={{ marginTop: 4, fontSize: 12, color: "rgba(255,255,255,.34)" }}>
-          已完成 {student.answeredCount} 题
-        </div>
-      </div>
-
-      <div style={styles.progressCol}>
-        <ProgressBar value={student.progress || 0} />
-        <span style={styles.progressScore}>{progressToScore(student.progress || 0)}</span>
-      </div>
-
-      <div style={{ paddingLeft: 24 }}>
-        <span style={styles.rateBadge}>{student.accuracy || 0}%</span>
-      </div>
-
-      <div style={{ color: "rgba(255,255,255,.64)" }}>{student.weak || "—"}</div>
-    </div>
-  ))}
-</div>
-
 const chartData = Array.from({ length: 10 }, (_, index) => ({
   name: `Q${index + 1}`,
   rate: [92, 78, 84, 70, 88, 66, 80, 74, 91, 76][index],
