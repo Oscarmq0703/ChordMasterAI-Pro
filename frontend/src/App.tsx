@@ -270,10 +270,78 @@ function ProgressBar({ value }: { value: number }) {
 function PianoKeyboard({
   adaptive = false,
   showLabels = false,
+  onNoteClick,
 }: {
   adaptive?: boolean;
   showLabels?: boolean;
+  onNoteClick?: (note: string) => void;
 }) {
+  const whiteWidth = 44;
+  const whiteHeight = 170;
+  const blackWidth = 28;
+  const blackHeight = 104;
+  const keyboardWidth = whiteKeys.length * whiteWidth;
+
+  const wrapStyle = adaptive
+    ? { ...styles.keyboardWrap, padding: 12 }
+    : { ...styles.keyboardWrap, overflowX: "auto" as const, padding: 16 };
+
+  const layoutStyle = adaptive
+    ? ({ position: "relative", width: "100%", aspectRatio: `${keyboardWidth} / ${whiteHeight}` } as CSSProperties)
+    : ({ position: "relative", width: keyboardWidth, height: whiteHeight } as CSSProperties);
+
+  return (
+    <div style={wrapStyle}>
+      <div style={layoutStyle}>
+        <div style={{ display: "flex", height: "100%" }}>
+          {whiteKeys.map((key, index) => (
+            <button
+              key={`${key}-${index}`}
+              type="button"
+              onClick={() => onNoteClick?.(key)}
+              style={{
+                ...styles.whiteKey,
+                width: adaptive ? `${100 / whiteKeys.length}%` : whiteWidth,
+                height: "100%",
+              }}
+            >
+              {showLabels ? key : null}
+            </button>
+          ))}
+        </div>
+
+        {blackKeys.map((key, index) => {
+          const left = adaptive
+            ? `calc(${((key.afterWhiteIndex + 1) / whiteKeys.length) * 100}% - ${(blackWidth / keyboardWidth) * 50}%)`
+            : (key.afterWhiteIndex + 1) * whiteWidth - blackWidth / 2;
+
+          const blackStyle: CSSProperties = adaptive
+            ? {
+                left,
+                width: `${(blackWidth / keyboardWidth) * 100}%`,
+                height: `${(blackHeight / whiteHeight) * 100}%`,
+              }
+            : {
+                left: left as number,
+                width: blackWidth,
+                height: blackHeight,
+              };
+
+          return (
+            <button
+              key={`${key.note}-${index}`}
+              type="button"
+              onClick={() => onNoteClick?.(key.note)}
+              style={{ ...styles.blackKey, ...blackStyle }}
+            >
+              {showLabels ? key.note : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
   const whiteWidth = 44;
   const whiteHeight = 170;
   const blackWidth = 28;
@@ -656,11 +724,9 @@ function StudentView({
   studentSession,
   sessionError,
   joinStudentSession,
-  answerInput,
-  setAnswerInput,
-  submitStudentAnswer,
   answerSubmitting,
   answerFeedback,
+  handlePianoNoteClick,
 }: {
   sessionId: string;
   studentId: string;
@@ -669,14 +735,12 @@ function StudentView({
   studentSession: StudentSession | null;
   sessionError: string;
   joinStudentSession: () => Promise<void>;
-  answerInput: string;
-  setAnswerInput: React.Dispatch<React.SetStateAction<string>>;
-  submitStudentAnswer: () => Promise<void>;
   answerSubmitting: boolean;
   answerFeedback: {
     type: "" | "success" | "error";
     message: string;
   };
+  handlePianoNoteClick: (note: string) => void;
 }) {
   const [showAiSummary] = useState(false);
 
@@ -802,50 +866,36 @@ function StudentView({
           </Surface>
 
           <Surface style={{ gridColumn: "span 4" }}>
-            <div style={{ padding: 16 }}>
-              <div style={styles.sectionLabel}>提交答案</div>
+  <div style={{ padding: 16 }}>
+    <div style={styles.sectionLabel}>弹奏作答</div>
 
-              <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-                <input
-                  value={answerInput}
-                  onChange={(e) => setAnswerInput(e.target.value)}
-                  placeholder="请输入答案，例如 C7 / Am / F#maj7"
-                  style={styles.nameInput}
-                  disabled={!studentId || !studentSession?.currentQuestion || studentSession?.isFinished}
-                />
-
-                <button
-                  type="button"
-                  style={styles.confirmBtn}
-                  onClick={submitStudentAnswer}
-                  disabled={!studentId || answerSubmitting || !studentSession?.currentQuestion}
-                >
-                  {answerSubmitting ? "提交中..." : "提交答案"}
-                </button>
-
-                {answerFeedback.message ? (
-                  <div
-                    style={{
-                      borderRadius: 16,
-                      padding: "12px 14px",
-                      fontSize: 14,
-                      border:
-                        answerFeedback.type === "success"
-                          ? "1px solid rgba(110,231,183,.24)"
-                          : "1px solid rgba(248,113,113,.24)",
-                      background:
-                        answerFeedback.type === "success"
-                          ? "rgba(52,211,153,.10)"
-                          : "rgba(248,113,113,.10)",
-                      color: answerFeedback.type === "success" ? "#d1fae5" : "#fee2e2",
-                    }}
-                  >
-                    {answerFeedback.message}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </Surface>
+    <div
+      style={{
+        marginTop: 10,
+        borderRadius: 20,
+        border: "1px solid rgba(255,255,255,.10)",
+        background: "rgba(255,255,255,.05)",
+        padding: 16,
+        color: "rgba(255,255,255,.78)",
+        lineHeight: 1.8,
+        minHeight: 120,
+      }}
+    >
+      {!studentId ? (
+        <div>请先输入姓名并加入课堂</div>
+      ) : studentSession?.isFinished ? (
+        <div>本轮练习已完成</div>
+      ) : answerSubmitting ? (
+        <div>正在判定本题，请稍候…</div>
+      ) : (
+        <div>
+          直接在下方钢琴键盘上弹奏和弦。<br />
+          三和弦按满 3 个不同音会自动判定，七和弦按满 4 个不同音会自动判定。
+        </div>
+      )}
+    </div>
+  </div>
+</Surface>
 
           <Surface style={{ gridColumn: "span 4" }}>
             <div style={{ padding: 16 }}>
@@ -919,7 +969,11 @@ function StudentView({
               </div>
             </div>
             <div style={{ minHeight: 260, flex: 1, padding: "0 16px 16px 16px" }}>
-              <PianoKeyboard adaptive showLabels={false} />
+              <PianoKeyboard
+  adaptive
+  showLabels={true}
+  onNoteClick={handlePianoNoteClick}
+/>
             </div>
           </div>
         </Surface>
@@ -941,8 +995,8 @@ export default function App() {
   const [sessionError, setSessionError] = useState("");
 const [studentId, setStudentId] = useState("");
 const [studentName, setStudentName] = useState("张同学");
-const [answerInput, setAnswerInput] = useState("");
 const [answerSubmitting, setAnswerSubmitting] = useState(false);
+const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
 const [answerFeedback, setAnswerFeedback] = useState<{
   type: "" | "success" | "error";
   message: string;
@@ -1000,17 +1054,19 @@ const [answerFeedback, setAnswerFeedback] = useState<{
   setStudentSession(data.studentSession);
 }
 
-async function submitStudentAnswer() {
+async function submitStudentAnswer(notesArg?: string[]) {
   try {
     if (!sessionId || !studentId) {
       setSessionError("请先加入课堂");
       return;
     }
 
-    if (!answerInput.trim()) {
+    const notesToSend = notesArg && notesArg.length ? notesArg : selectedNotes;
+
+    if (!notesToSend.length) {
       setAnswerFeedback({
         type: "error",
-        message: "请先输入答案",
+        message: "请先弹奏钢琴键",
       });
       return;
     }
@@ -1028,7 +1084,7 @@ async function submitStudentAnswer() {
       },
       body: JSON.stringify({
         studentId,
-        answer: answerInput.trim(),
+        notes: notesToSend,
       }),
     });
 
@@ -1040,7 +1096,7 @@ async function submitStudentAnswer() {
 
     setStudentSession(data.studentSession);
     setTeacherSession(data.teacherSession);
-    setAnswerInput("");
+    setSelectedNotes([]);
     setAnswerFeedback({
       type: data.result?.isCorrect ? "success" : "error",
       message: data.result?.isCorrect
@@ -1052,6 +1108,7 @@ async function submitStudentAnswer() {
       type: "error",
       message: error.message || "提交答案失败",
     });
+    setSelectedNotes([]);
   } finally {
     setAnswerSubmitting(false);
   }
@@ -1096,6 +1153,35 @@ async function joinStudentSession() {
   } catch (error: any) {
     setSessionError(error.message || "加入课堂失败");
   }
+}
+
+function handlePianoNoteClick(note: string) {
+  if (!studentId || !studentSession?.currentQuestion || studentSession?.isFinished || answerSubmitting) {
+    return;
+  }
+
+  const expectedCount =
+    studentSession.currentQuestion.type === "maj7" ||
+    studentSession.currentQuestion.type === "min7" ||
+    studentSession.currentQuestion.type === "dom7"
+      ? 4
+      : 3;
+
+  setSelectedNotes((prev) => {
+    if (prev.includes(note)) {
+      return prev;
+    }
+
+    const next = [...prev, note];
+
+    if (next.length >= expectedCount) {
+      Promise.resolve().then(() => {
+        submitStudentAnswer(next);
+      });
+    }
+
+    return next;
+  });
 }
 
   async function startTeacherQuiz() {
@@ -1221,19 +1307,17 @@ useEffect(() => {
         />
       ) : (
         <StudentView
-          sessionId={sessionId}
-          studentId={studentId}
-          studentName={studentName}
-          setStudentName={setStudentName}
-          studentSession={studentSession}
-          sessionError={sessionError}
-          joinStudentSession={joinStudentSession}
-          answerInput={answerInput}
-          setAnswerInput={setAnswerInput}
-          submitStudentAnswer={submitStudentAnswer}
-          answerSubmitting={answerSubmitting}
-          answerFeedback={answerFeedback}
-        />
+  sessionId={sessionId}
+  studentId={studentId}
+  studentName={studentName}
+  setStudentName={setStudentName}
+  studentSession={studentSession}
+  sessionError={sessionError}
+  joinStudentSession={joinStudentSession}
+  answerSubmitting={answerSubmitting}
+  answerFeedback={answerFeedback}
+  handlePianoNoteClick={handlePianoNoteClick}
+/>
       )}
     </div>
   );
