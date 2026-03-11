@@ -342,71 +342,7 @@ function PianoKeyboard({
     </div>
   );
 }
-  const whiteWidth = 44;
-  const whiteHeight = 170;
-  const blackWidth = 28;
-  const blackHeight = 104;
-  const keyboardWidth = whiteKeys.length * whiteWidth;
-
-  const wrapStyle = adaptive
-    ? { ...styles.keyboardWrap, padding: 12 }
-    : { ...styles.keyboardWrap, overflowX: "auto" as const, padding: 16 };
-
-  const layoutStyle = adaptive
-    ? ({ position: "relative", width: "100%", aspectRatio: `${keyboardWidth} / ${whiteHeight}` } as CSSProperties)
-    : ({ position: "relative", width: keyboardWidth, height: whiteHeight } as CSSProperties);
-
-  return (
-    <div style={wrapStyle}>
-      <div style={layoutStyle}>
-        <div style={{ display: "flex", height: "100%" }}>
-          {whiteKeys.map((key, index) => (
-            <button
-              key={`${key}-${index}`}
-              type="button"
-              style={{
-                ...styles.whiteKey,
-                width: adaptive ? `${100 / whiteKeys.length}%` : whiteWidth,
-                height: "100%",
-              }}
-            >
-              {showLabels ? key : null}
-            </button>
-          ))}
-        </div>
-
-        {blackKeys.map((key, index) => {
-          const left = adaptive
-            ? `calc(${((key.afterWhiteIndex + 1) / whiteKeys.length) * 100}% - ${(blackWidth / keyboardWidth) * 50}%)`
-            : (key.afterWhiteIndex + 1) * whiteWidth - blackWidth / 2;
-
-          const blackStyle: CSSProperties = adaptive
-            ? {
-                left,
-                width: `${(blackWidth / keyboardWidth) * 100}%`,
-                height: `${(blackHeight / whiteHeight) * 100}%`,
-              }
-            : {
-                left: left as number,
-                width: blackWidth,
-                height: blackHeight,
-              };
-
-          return (
-            <button
-              key={`${key.note}-${index}`}
-              type="button"
-              style={{ ...styles.blackKey, ...blackStyle }}
-            >
-              {showLabels ? key.note : null}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
+  
 function TeacherView({
   selectedChordTypes,
   setSelectedChordTypes,
