@@ -78,6 +78,55 @@ const CHORD_LIBRARY = {
   dom7: { label: "属七和弦", suffix: "7" },
 };
 
+const NOTE_TO_SEMITONE = {
+  C: 0,
+  "B#": 0,
+  "C#": 1,
+  Db: 1,
+  D: 2,
+  "D#": 3,
+  Eb: 3,
+  E: 4,
+  Fb: 4,
+  F: 5,
+  "E#": 5,
+  "F#": 6,
+  Gb: 6,
+  G: 7,
+  "G#": 8,
+  Ab: 8,
+  A: 9,
+  "A#": 10,
+  Bb: 10,
+  B: 11,
+  Cb: 11,
+};
+
+const SEMITONE_TO_NOTE = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+];
+
+const CHORD_INTERVALS = {
+  major: [0, 4, 7],
+  minor: [0, 3, 7],
+  dim: [0, 3, 6],
+  aug: [0, 4, 8],
+  maj7: [0, 4, 7, 11],
+  min7: [0, 3, 7, 10],
+  dom7: [0, 4, 7, 10],
+};
+
 function sample(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -88,6 +137,38 @@ function buildRoot() {
 
 function normalizeAnswer(value = "") {
   return String(value).trim().replace(/\s+/g, "").toLowerCase();
+}
+
+function normalizeNote(note = "") {
+  const cleaned = String(note).trim();
+  return NOTE_TO_SEMITONE[cleaned] ?? null;
+}
+
+function buildChordToneSet(root, type) {
+  const rootValue = normalizeNote(root);
+  const intervals = CHORD_INTERVALS[type] || [];
+
+  if (rootValue === null) return [];
+
+  return intervals
+    .map((interval) => (rootValue + interval) % 12)
+    .map((value) => SEMITONE_TO_NOTE[value]);
+}
+
+function normalizeNoteArray(notes = []) {
+  const values = notes
+    .map((note) => normalizeNote(note))
+    .filter((value) => value !== null);
+
+  return [...new Set(values)].sort((a, b) => a - b);
+}
+
+function areSameNoteSet(left = [], right = []) {
+  const a = normalizeNoteArray(left);
+  const b = normalizeNoteArray(right);
+
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
 }
 
 function generateQuestions({ count = 10, chordTypes = ["major", "minor", "dom7"] }) {
@@ -108,10 +189,11 @@ function generateQuestions({ count = 10, chordTypes = ["major", "minor", "dom7"]
       prompt: `请弹出：${root}${chordInfo.suffix}`,
       displayName: `${root}${chordInfo.suffix}`,
       correctAnswer: {
-        root,
-        type,
-        displayName: `${root}${chordInfo.suffix}`,
-      },
+  root,
+  type,
+  displayName: `${root}${chordInfo.suffix}`,
+  tones: buildChordToneSet(root, type),
+},
     };
   });
 }
@@ -436,7 +518,7 @@ app.get("/api/session/:sessionId/student/:studentId", async (req, res) => {
 app.post("/api/session/:sessionId/answer", async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { studentId, answer } = req.body || {};
+    const { studentId, notes = [] } = req.body || {};
 
     const session = await getSession(sessionId);
 
@@ -481,8 +563,8 @@ app.post("/api/session/:sessionId/answer", async (req, res) => {
       });
     }
 
-    const isCorrect =
-      normalizeAnswer(answer) === normalizeAnswer(question.correctAnswer.displayName);
+    const expectedNotes = question.correctAnswer?.tones || [];
+const isCorrect = areSameNoteSet(notes, expectedNotes);
 
     const answerRecord = {
       questionId: question.id,
@@ -491,7 +573,8 @@ app.post("/api/session/:sessionId/answer", async (req, res) => {
       displayName: question.displayName,
       type: question.type,
       typeLabel: question.typeLabel,
-      answer: String(answer || ""),
+      answer: Array.isArray(notes) ? notes.join("-") : "",
+playedNotes: Array.isArray(notes) ? notes : [],
       isCorrect,
       submittedAt: new Date().toISOString(),
     };
@@ -516,7 +599,7 @@ app.post("/api/session/:sessionId/answer", async (req, res) => {
       ok: true,
       result: {
         isCorrect,
-        correctAnswer: question.correctAnswer.displayName,
+        correctAnswer: `${question.correctAnswer.displayName}（${(question.correctAnswer.tones || []).join("-")}）`,
       },
       studentSession: toStudentSession(session, student),
       teacherSession: toTeacherSession(session),
