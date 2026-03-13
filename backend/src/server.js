@@ -224,6 +224,139 @@ function buildQuestionStats(questions = []) {
   return map;
 }
 
+function getChordTypeLabel(type) {
+  return CHORD_LIBRARY[type]?.label || type;
+}
+
+function buildStudentFeedback(student) {
+  const answers = Array.isArray(student.answers) ? student.answers : [];
+  const totalAnswered = answers.length;
+  const correctCount = student.correctCount || 0;
+  const accuracy =
+    totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
+
+  const wrongTypeCount = {};
+  for (const item of answers) {
+    if (!item.isCorrect) {
+      wrongTypeCount[item.type] = (wrongTypeCount[item.type] || 0) + 1;
+    }
+  }
+
+  const weakTypes = Object.entries(wrongTypeCount)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type]) => type)
+    .slice(0, 2);
+
+  let level = "good";
+  if (accuracy >= 90) {
+    level = "excellent";
+  } else if (accuracy >= 75) {
+    level = "good";
+  } else if (accuracy >= 60) {
+    level = "developing";
+  } else {
+    level = "needsFocus";
+  }
+
+  let summary = "";
+  let suggestion = "";
+  let focus = "";
+
+  if (level === "excellent") {
+    summary = "你本轮和弦辨认非常稳定，已经具备较强的和弦听想与键盘反应能力。";
+    suggestion = "建议下一步增加转位干扰、混合七和弦和限时训练，继续提升反应速度与迁移能力。";
+  } else if (level === "good") {
+    summary = "你已经掌握了大部分和弦判断，整体表现良好，基础较稳。";
+    suggestion = "建议继续巩固易混淆和弦，并加入根音变化练习，提高不同调上的识别稳定性。";
+  } else if (level === "developing") {
+    summary = "你已经建立了基本的和弦识别能力，但稳定性还需要继续加强。";
+    suggestion = "建议先分类型反复练习，再逐步进行混合题训练，提升判断准确率。";
+  } else {
+    summary = "你当前还处在和弦识别能力建立阶段，需要更多针对性训练。";
+    suggestion = "建议从大三、小三和弦开始单独练习，先熟悉音程结构，再过渡到七和弦。";
+  }
+
+  if (weakTypes.length > 0) {
+    focus = `当前相对薄弱的类型：${weakTypes.map(getChordTypeLabel).join("、")}。`;
+  } else {
+    focus = "本轮未出现明显集中错误类型，整体识别较均衡。";
+  }
+
+  let nextStep = "";
+  if (weakTypes.includes("maj7") || weakTypes.includes("min7") || weakTypes.includes("dom7")) {
+    nextStep += "建议重点比较三和弦与七和弦的音响层次差异。";
+  }
+  if (weakTypes.includes("dim") || weakTypes.includes("aug")) {
+    nextStep += " 可增加增减和弦的对比练习，强化特殊色彩和声音程记忆。";
+  }
+  if (!nextStep) {
+    nextStep = "建议继续保持每日短时、高频的和弦弹奏与听辨结合训练。";
+  }
+
+  return {
+    totalAnswered,
+    correctCount,
+    accuracy,
+    level,
+    weakTypes,
+    summary,
+    focus,
+    suggestion,
+    nextStep,
+    updatedAt: Date.now(),
+  };
+}
+
+function buildClassFeedback(session) {
+  const students = Array.isArray(session.students) ? session.students : [];
+  const finishedStudents = students.filter(
+    (student) => student.feedback && student.feedback.totalAnswered >= 10
+  );
+
+  if (finishedStudents.length === 0) {
+    return null;
+  }
+
+  const averageAccuracy = Math.round(
+    finishedStudents.reduce(
+      (sum, student) => sum + (student.feedback?.accuracy || 0),
+      0
+    ) / finishedStudents.length
+  );
+
+  const weakTypeCount = {};
+  for (const student of finishedStudents) {
+    const weakTypes = Array.isArray(student.feedback?.weakTypes)
+      ? student.feedback.weakTypes
+      : [];
+    for (const type of weakTypes) {
+      weakTypeCount[type] = (weakTypeCount[type] || 0) + 1;
+    }
+  }
+
+  const commonWeakTypes = Object.entries(weakTypeCount)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type]) => type)
+    .slice(0, 3);
+
+  let summary = `当前已有 ${finishedStudents.length} 名学生完成本轮训练，班级平均正确率为 ${averageAccuracy}%。`;
+  if (commonWeakTypes.length > 0) {
+    summary += ` 班级共性薄弱点集中在：${commonWeakTypes
+      .map(getChordTypeLabel)
+      .join("、")}。`;
+  } else {
+    summary += " 班级整体错误分布较均衡。";
+  }
+
+  return {
+    finishedCount: finishedStudents.length,
+    averageAccuracy,
+    commonWeakTypes,
+    summary,
+    updatedAt: Date.now(),
+  };
+}
+
 function summarizeStudent(student, totalQuestions) {
   const answeredCount = student.answers?.length || 0;
   const correctCount = student.correctCount || 0;
@@ -255,6 +388,7 @@ function summarizeStudent(student, totalQuestions) {
     wrongCount,
     weak: weakTypes.length ? weakTypes.join("、") : "—",
     currentQuestionIndex: student.currentQuestionIndex || 0,
+    feedback: student.feedback || null,
   };
 }
 
@@ -279,6 +413,7 @@ function toTeacherSession(session) {
     ...session,
     students,
     chartData,
+    classFeedback: buildClassFeedback(session),
   };
 }
 
@@ -337,6 +472,7 @@ function toStudentSession(session, student) {
       student.answers && student.answers.length > 0
         ? student.answers[student.answers.length - 1]
         : null,
+    feedback: student.feedback || null,
   };
 }
 
@@ -402,13 +538,13 @@ app.post("/api/session/:sessionId/start", async (req, res) => {
         byQuestion: buildQuestionStats(questions),
       },
       students: (session.students || []).map((student) => ({
-        ...student,
-        currentQuestionIndex: 0,
-        answers: [],
-        correctCount: 0,
-        wrongCount: 0,
-      })),
-    };
+  ...student,
+  currentQuestionIndex: 0,
+  answers: [],
+  correctCount: 0,
+  wrongCount: 0,
+  feedback: null,
+})),
 
     await saveSession(sessionId, nextSession);
 
@@ -449,15 +585,16 @@ app.post("/api/session/:sessionId/join", async (req, res) => {
 
     if (!student) {
       student = {
-        studentId: makeStudentId(),
-        name,
-        joinedAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString(),
-        currentQuestionIndex: 0,
-        answers: [],
-        correctCount: 0,
-        wrongCount: 0,
-      };
+  studentId: makeStudentId(),
+  name,
+  joinedAt: new Date().toISOString(),
+  lastActiveAt: new Date().toISOString(),
+  currentQuestionIndex: 0,
+  answers: [],
+  correctCount: 0,
+  wrongCount: 0,
+  feedback: null,
+};
 
       session.students = [...(session.students || []), student];
     } else {
@@ -564,7 +701,10 @@ app.post("/api/session/:sessionId/answer", async (req, res) => {
     }
 
     const expectedNotes = question.correctAnswer?.tones || [];
-const isCorrect = areSameNoteSet(notes, expectedNotes);
+    const normalizedPlayedNotes = normalizeNoteArray(notes).map(
+      (value) => SEMITONE_TO_NOTE[value]
+    );
+    const isCorrect = areSameNoteSet(notes, expectedNotes);
 
     const answerRecord = {
       questionId: question.id,
@@ -574,7 +714,8 @@ const isCorrect = areSameNoteSet(notes, expectedNotes);
       type: question.type,
       typeLabel: question.typeLabel,
       answer: Array.isArray(notes) ? notes.join("-") : "",
-playedNotes: Array.isArray(notes) ? notes : [],
+      playedNotes: normalizedPlayedNotes,
+      expectedNotes,
       isCorrect,
       submittedAt: new Date().toISOString(),
     };
@@ -584,6 +725,10 @@ playedNotes: Array.isArray(notes) ? notes : [],
     student.wrongCount = (student.wrongCount || 0) + (isCorrect ? 0 : 1);
     student.currentQuestionIndex = (student.currentQuestionIndex || 0) + 1;
     student.lastActiveAt = new Date().toISOString();
+
+    if ((student.answers?.length || 0) >= 10) {
+      student.feedback = buildStudentFeedback(student);
+    }
 
     const stat = session.stats?.byQuestion?.[question.id];
     if (stat) {
@@ -597,10 +742,8 @@ playedNotes: Array.isArray(notes) ? notes : [],
 
     res.json({
       ok: true,
-      result: {
-        isCorrect,
-        correctAnswer: `${question.correctAnswer.displayName}（${(question.correctAnswer.tones || []).join("-")}）`,
-      },
+      isCorrect,
+      correctAnswer: question.correctAnswer?.tones || [],
       studentSession: toStudentSession(session, student),
       teacherSession: toTeacherSession(session),
     });

@@ -1,4 +1,4 @@
-import React, { CSSProperties, useEffect, useMemo, useState } from "react";
+import React, { CSSProperties, useEffect, useState } from "react";
 import {
   BarChart3,
   Wifi,
@@ -58,11 +58,16 @@ type StudentRow = {
 };
 
 type Feedback = {
-  status: boolean;
-  title: string;
-  text: string;
-  advice: string;
-  tags: string[];
+  totalAnswered: number;
+  correctCount: number;
+  accuracy: number;
+  level: "excellent" | "good" | "developing" | "needsFocus";
+  weakTypes: string[];
+  summary: string;
+  focus: string;
+  suggestion: string;
+  nextStep: string;
+  updatedAt: number;
 };
 
 type BlackKey = {
@@ -85,19 +90,20 @@ type TeacherSession = {
     typeLabel: string;
     root: string;
   }>;
-  students?: Array<{
-    studentId: string;
-    name: string;
-    joinedAt?: string;
-    lastActiveAt?: string;
-    answeredCount: number;
-    progress: number;
-    accuracy: number;
-    correctCount: number;
-    wrongCount: number;
-    weak: string;
-    currentQuestionIndex: number;
-  }>;
+ students?: Array<{
+  studentId: string;
+  name: string;
+  joinedAt?: string;
+  lastActiveAt?: string;
+  answeredCount: number;
+  progress: number;
+  accuracy: number;
+  correctCount: number;
+  wrongCount: number;
+  weak: string;
+  currentQuestionIndex: number;
+  feedback?: Feedback | null;
+}>;
   chartData?: Array<{
     name: string;
     rate: number;
@@ -106,6 +112,13 @@ type TeacherSession = {
     displayName: string;
   }>;
   stats?: Record<string, any>;
+  classFeedback?: {
+    finishedCount: number;
+    averageAccuracy: number;
+    commonWeakTypes: string[];
+    summary: string;
+    updatedAt: number;
+  } | null;
 };
 
 type StudentSession = {
@@ -139,6 +152,7 @@ type StudentSession = {
     isCorrect: boolean;
     submittedAt: string;
   } | null;
+  feedback?: Feedback | null;
 };
 
 const chordTypeOptions = [
@@ -174,6 +188,20 @@ const blackKeys: BlackKey[] = [
 function progressToScore(progress: number, total = 10) {
   const completed = Math.round((progress / 100) * total);
   return `${completed}/${total}`;
+}
+
+function getChordTypeLabel(type: string) {
+  const map: Record<string, string> = {
+    major: "大三和弦",
+    minor: "小三和弦",
+    dim: "减三和弦",
+    aug: "增三和弦",
+    maj7: "大七和弦",
+    min7: "小七和弦",
+    dom7: "属七和弦",
+  };
+
+  return map[type] || type;
 }
 
 function StatusPill({
@@ -363,7 +391,7 @@ function TeacherView({
   startTeacherQuiz: () => Promise<void>;
 }) {
   const [mode, setMode] = useState("name");
-
+  const classFeedback = teacherSession?.classFeedback || null;
   const toggleChord = (item: string) => {
     setSelectedChordTypes((prev) =>
       prev.includes(item) ? prev.filter((value) => value !== item) : [...prev, item],
@@ -561,6 +589,57 @@ function TeacherView({
           </div>
         </Surface>
 
+        {classFeedback ? (
+          <Surface style={{ overflow: "hidden" }}>
+            <div style={styles.cardPad}>
+              <SectionTitle
+                eyebrow="Class AI Feedback"
+                icon={<BrainCircuit size={18} color="#f0abfc" />}
+                title="班级 AI 听想反馈"
+                titleColor="#f5d0fe"
+                desc="根据已完成 10 题学生的整体表现，汇总班级平均正确率与共性薄弱和弦类型。"
+              />
+
+              <div style={styles.innerPanel}>
+                <div style={styles.feedbackMetricRow}>
+                  <div style={styles.feedbackMetricCard}>
+                    <div style={styles.feedbackMetricValue}>{classFeedback.finishedCount}</div>
+                    <div style={styles.feedbackMetricLabel}>已完成学生</div>
+                  </div>
+                  <div style={styles.feedbackMetricCard}>
+                    <div style={styles.feedbackMetricValue}>{classFeedback.averageAccuracy}%</div>
+                    <div style={styles.feedbackMetricLabel}>班级平均正确率</div>
+                  </div>
+                  <div style={styles.feedbackMetricCard}>
+                    <div style={styles.feedbackMetricValue}>
+                      {classFeedback.commonWeakTypes?.length || 0}
+                    </div>
+                    <div style={styles.feedbackMetricLabel}>共性薄弱点</div>
+                  </div>
+                </div>
+
+                <div style={styles.aiAdviceCard}>
+                  <div style={styles.feedbackBlockTitle}>班级总结</div>
+                  <div style={{ marginBottom: 10 }}>{classFeedback.summary}</div>
+
+                  {classFeedback.commonWeakTypes?.length ? (
+                    <>
+                      <div style={styles.feedbackBlockTitle}>重点关注和弦</div>
+                      <div style={styles.tagRow}>
+                        {classFeedback.commonWeakTypes.map((type) => (
+                          <span key={type} style={styles.tag}>
+                            {getChordTypeLabel(type)}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </Surface>
+        ) : null}
+
         <Surface style={{ overflow: "hidden" }}>
           <div style={styles.cardPad}>
             <SectionTitle
@@ -568,7 +647,7 @@ function TeacherView({
               icon={<Users size={18} color="#6ee7b7" />}
               title="在线学生列表"
               titleColor="#d1fae5"
-              desc="当前仍为占位数据，下一步接学生提交答案后再改为真实实时数据。"
+              desc="基于当前课堂真实提交数据，显示学生进度、正确率与反馈摘要。"
             />
 
             <div style={styles.innerPanel}>
@@ -594,6 +673,15 @@ function TeacherView({
       <div style={{ marginTop: 4, fontSize: 12, color: "rgba(255,255,255,.34)" }}>
         已完成 {student.answeredCount} 题
       </div>
+
+      {student.feedback ? (
+        <div style={styles.teacherMiniFeedback}>
+          正确率 {student.feedback.accuracy}% ·{" "}
+          {student.feedback.weakTypes?.length
+            ? `薄弱：${student.feedback.weakTypes.map((type: string) => getChordTypeLabel(type)).join("、")}`
+            : "暂无集中薄弱点"}
+        </div>
+      ) : null}
     </div>
 
     <div style={styles.progressCol}>
@@ -678,19 +766,8 @@ function StudentView({
   };
   handlePianoNoteClick: (note: string) => void;
 }) {
-  const [showAiSummary] = useState(false);
-
-  const feedback: Feedback = useMemo(
-    () => ({
-      status: true,
-      title: "听想反馈",
-      text: "第 4 题回答正确。你已能在内听中保持属功能张力，并准确提取和弦核心音型。",
-      advice:
-        "本组 10 题后，建议按‘整体聆听 → 核心音型辨识 → 功能归类 → 新主音迁移’继续练习，先巩固大三、小三、属七的稳定听想，再推进减七与半减七的功能分辨。",
-      tags: ["内听保持", "音型辨识", "功能感知", "迁移应用"],
-    }),
-    [],
-  );
+  const feedback = studentSession?.feedback || null;
+  const showAiSummary = !!feedback && !!studentSession?.isFinished;
 
   return (
     <div style={styles.page}>
@@ -854,11 +931,11 @@ function StudentView({
           </Surface>
         </div>
 
-        <Surface>
+              <Surface>
           <div style={{ padding: 16 }}>
             <div style={styles.feedbackHead}>
               <BrainCircuit size={16} color="#f0abfc" />
-              <span>{showAiSummary ? "AI智能反馈 · Gordon 听想" : "即时反馈区"}</span>
+              <span>{showAiSummary ? "AI 听想反馈" : "即时反馈区"}</span>
             </div>
 
             {!showAiSummary ? (
@@ -871,27 +948,48 @@ function StudentView({
                 {answerFeedback.message || "提交答案后，这里会显示本题正误反馈"}
               </div>
             ) : (
-              <>
-                <div style={styles.aiFeedbackCard}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, marginBottom: 6 }}>
-                    {feedback.status ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-                    {feedback.status ? "回答正确" : "回答错误"}
+              <div style={styles.feedbackSummaryWrap}>
+                <div style={styles.feedbackMetricRow}>
+                  <div style={styles.feedbackMetricCard}>
+                    <div style={styles.feedbackMetricValue}>{feedback.accuracy}%</div>
+                    <div style={styles.feedbackMetricLabel}>正确率</div>
                   </div>
-                  <div>{feedback.text}</div>
+                  <div style={styles.feedbackMetricCard}>
+                    <div style={styles.feedbackMetricValue}>{feedback.correctCount}</div>
+                    <div style={styles.feedbackMetricLabel}>答对题数</div>
+                  </div>
+                  <div style={styles.feedbackMetricCard}>
+                    <div style={styles.feedbackMetricValue}>{feedback.totalAnswered}</div>
+                    <div style={styles.feedbackMetricLabel}>完成题数</div>
+                  </div>
+                </div>
+
+                <div style={styles.aiFeedbackCard}>
+                  <div style={styles.feedbackBlockTitle}>总体评价</div>
+                  <div>{feedback.summary}</div>
                 </div>
 
                 <div style={styles.aiAdviceCard}>
-                  <div style={styles.tagRow}>
-                    {feedback.tags.map((tag) => (
-                      <span key={tag} style={styles.tag}>
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <span style={{ color: "rgba(255,255,255,.88)", fontWeight: 600 }}>听想练习建议：</span>
-                  {feedback.advice}
+                  <div style={styles.feedbackBlockTitle}>薄弱点分析</div>
+                  <div style={{ marginBottom: 10 }}>{feedback.focus}</div>
+
+                  {feedback.weakTypes?.length ? (
+                    <div style={styles.tagRow}>
+                      {feedback.weakTypes.map((type) => (
+                        <span key={type} style={styles.tag}>
+                          {getChordTypeLabel(type)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div style={styles.feedbackBlockTitle}>练习建议</div>
+                  <div style={{ marginBottom: 10 }}>{feedback.suggestion}</div>
+
+                  <div style={styles.feedbackBlockTitle}>下一步训练</div>
+                  <div>{feedback.nextStep}</div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </Surface>
@@ -1033,11 +1131,11 @@ async function submitStudentAnswer(notesArg?: string[]) {
     setStudentSession(data.studentSession);
     setTeacherSession(data.teacherSession);
     setSelectedNotes([]);
-    setAnswerFeedback({
-      type: data.result?.isCorrect ? "success" : "error",
-      message: data.result?.isCorrect
-        ? `回答正确，正确答案：${data.result.correctAnswer}`
-        : `回答错误，正确答案：${data.result.correctAnswer}`,
+        setAnswerFeedback({
+      type: data.isCorrect ? "success" : "error",
+      message: data.isCorrect
+        ? `回答正确，正确答案：${Array.isArray(data.correctAnswer) ? data.correctAnswer.join(" - ") : ""}`
+        : `回答错误，正确答案：${Array.isArray(data.correctAnswer) ? data.correctAnswer.join(" - ") : ""}`,
     });
   } catch (error: any) {
     setAnswerFeedback({
@@ -1912,5 +2010,44 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: "50%",
     background: "rgba(255,255,255,.05)",
     filter: "blur(48px)",
+  },
+  feedbackSummaryWrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+  },
+  feedbackMetricRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 12,
+  },
+  feedbackMetricCard: {
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,.12)",
+    background: "rgba(255,255,255,.06)",
+    padding: 16,
+    textAlign: "center",
+  },
+  feedbackMetricValue: {
+    fontSize: 24,
+    fontWeight: 700,
+    color: "#ffffff",
+  },
+  feedbackMetricLabel: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "rgba(255,255,255,.58)",
+  },
+  feedbackBlockTitle: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "rgba(255,255,255,.90)",
+    marginBottom: 8,
+  },
+  teacherMiniFeedback: {
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 1.6,
+    color: "rgba(255,255,255,.58)",
   },
 };
