@@ -1043,10 +1043,6 @@ const showAiSummary = !!feedback && !!studentSession?.isFinished;
     </div>
   </Surface>
 ) : null}
-      </div>
-    </div>
-  );
-}
 
 export default function App() {
   const initialView =
