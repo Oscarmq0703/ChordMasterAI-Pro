@@ -11,7 +11,6 @@ import {
   Piano,
   CheckCircle2,
   XCircle,
-  Monitor,
   Smartphone,
 } from "lucide-react";
 import {
@@ -1248,31 +1247,6 @@ useEffect(() => {
             <div style={styles.topBarTitle}>ChordMasterAI Pro</div>
             <div style={styles.topBarSub}>Unified UI Prototype · ChordMasterAI Pro</div>
           </div>
-
-          <div style={styles.switchWrap}>
-            <button
-              type="button"
-              onClick={() => setView("teacher")}
-              style={{
-                ...styles.switchBtn,
-                ...(view === "teacher" ? styles.switchBtnActive : {}),
-              }}
-            >
-              <Monitor size={16} />
-              <span>教师端</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("student")}
-              style={{
-                ...styles.switchBtn,
-                ...(view === "student" ? styles.switchBtnActive : {}),
-              }}
-            >
-              <Smartphone size={16} />
-              <span>学生端</span>
-            </button>
-          </div>
         </div>
       </div>
 
@@ -1341,29 +1315,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 12,
     color: "rgba(186,230,253,.5)",
   },
-  switchWrap: {
-    display: "flex",
-    gap: 8,
-    borderRadius: 999,
-    padding: 4,
-    background: "rgba(255,255,255,.04)",
-  },
-  switchBtn: {
-    border: 0,
-    borderRadius: 999,
-    padding: "10px 16px",
-    background: "transparent",
-    color: "rgba(255,255,255,.72)",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    cursor: "pointer",
-  },
-  switchBtnActive: {
-    background: "rgba(255,255,255,.12)",
-    color: "#fff",
-  },
-  page: {
+    page: {
     position: "relative",
     minHeight: "100vh",
     overflow: "hidden",
