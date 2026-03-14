@@ -298,12 +298,12 @@ function PianoKeyboard({
   adaptive = false,
   showLabels = false,
   onNoteClick,
-  selectedNotes = [],
+  selectedKeyIds = [],
 }: {
   adaptive?: boolean;
   showLabels?: boolean;
-  onNoteClick?: (note: string) => void;
-  selectedNotes?: string[];
+  onNoteClick?: (keyId: string, note: string) => void;
+  selectedKeyIds?: string[];
 }) {
   const [activeKeys, setActiveKeys] = useState<string[]>([]);
 
@@ -314,8 +314,8 @@ function PianoKeyboard({
   const keyboardWidth = whiteKeys.length * whiteWidth;
 
   const triggerKeyFeedback = (keyId: string, note: string) => {
-    setActiveKeys((prev) => [...prev, keyId]);
-    onNoteClick?.(note);
+  setActiveKeys((prev) => [...prev, keyId]);
+  onNoteClick?.(keyId, note);
 
     setTimeout(() => {
       setActiveKeys((prev) => prev.filter((item) => item !== keyId));
@@ -339,7 +339,7 @@ function PianoKeyboard({
           {whiteKeys.map((key, index) => {
             const keyId = `white-${key}-${index}`;
 const active = isKeyActive(keyId);
-const selected = selectedNotes.includes(key);
+const selected = selectedKeyIds.includes(keyId);
 
             return (
               <button
@@ -363,7 +363,7 @@ const selected = selectedNotes.includes(key);
         {blackKeys.map((key, index) => {
           const keyId = `black-${key.note}-${index}`;
 const active = isKeyActive(keyId);
-const selected = selectedNotes.includes(key.note);
+const selected = selectedKeyIds.includes(keyId);
 
           const left = adaptive
             ? `calc(${((key.afterWhiteIndex + 1) / whiteKeys.length) * 100}% - ${(blackWidth / keyboardWidth) * 50}%)`
@@ -776,6 +776,7 @@ function StudentView({
   answerFeedback,
   handlePianoNoteClick,
   selectedNotes,
+  selectedKeyIds,
 }: {
   sessionId: string;
   studentId: string;
@@ -789,8 +790,9 @@ function StudentView({
     type: "" | "success" | "error";
     message: string;
   };
-  handlePianoNoteClick: (note: string) => void;
+  handlePianoNoteClick: (keyId: string, note: string) => void;
   selectedNotes: string[];
+  selectedKeyIds: string[];
 }) {
   const feedback = studentSession?.feedback ?? null;
 const showAiSummary = false;
@@ -988,7 +990,7 @@ const showAiSummary = false;
   adaptive
   showLabels={false}
   onNoteClick={handlePianoNoteClick}
-  selectedNotes={selectedNotes}
+  selectedKeyIds={selectedKeyIds}
 />
             </div>
           </div>
@@ -1013,6 +1015,7 @@ const [studentId, setStudentId] = useState("");
 const [studentName, setStudentName] = useState("张同学");
 const [answerSubmitting, setAnswerSubmitting] = useState(false);
 const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
+const [selectedKeyIds, setSelectedKeyIds] = useState<string[]>([]);
 const [answerFeedback, setAnswerFeedback] = useState<{
   type: "" | "success" | "error";
   message: string;
@@ -1171,7 +1174,7 @@ async function joinStudentSession() {
   }
 }
 
-function handlePianoNoteClick(note: string) {
+function handlePianoNoteClick(keyId: string, note: string) {
   if (!studentId || !studentSession?.currentQuestion || studentSession?.isFinished || answerSubmitting) {
     return;
   }
@@ -1183,20 +1186,27 @@ function handlePianoNoteClick(note: string) {
       ? 4
       : 3;
 
-  setSelectedNotes((prev) => {
-    if (prev.includes(note)) {
-      return prev;
+  setSelectedNotes((prevNotes) => {
+    if (prevNotes.includes(note)) {
+      return prevNotes;
     }
 
-    const next = [...prev, note];
+    const nextNotes = [...prevNotes, note];
 
-    if (next.length >= expectedCount) {
+    setSelectedKeyIds((prevKeyIds) => {
+      if (prevKeyIds.includes(keyId)) {
+        return prevKeyIds;
+      }
+      return [...prevKeyIds, keyId];
+    });
+
+    if (nextNotes.length >= expectedCount) {
       Promise.resolve().then(() => {
-        submitStudentAnswer(next);
+        submitStudentAnswer(nextNotes);
       });
     }
 
-    return next;
+    return nextNotes;
   });
 }
 
@@ -1309,6 +1319,7 @@ useEffect(() => {
   answerFeedback={answerFeedback}
   handlePianoNoteClick={handlePianoNoteClick}
   selectedNotes={selectedNotes}
+  selectedKeyIds={selectedKeyIds}
 />
       )}
     </div>
@@ -1751,12 +1762,13 @@ blackKeyActive: {
   transition: "all 0.08s ease",
 },
 whiteKeySelected: {
-  background: "linear-gradient(180deg, #f8fafc, #dbeafe)",
-  boxShadow: "inset 0 0 0 1px rgba(96,165,250,.28), 0 8px 18px rgba(96,165,250,.12)",
+  background: "linear-gradient(180deg, #eff6ff, #bfdbfe)",
+  boxShadow: "inset 0 0 0 1px rgba(59,130,246,.32), 0 8px 18px rgba(59,130,246,.18)",
 },
 blackKeySelected: {
-  background: "linear-gradient(180deg, #27272a, #0f172a)",
-  boxShadow: "inset 0 0 0 1px rgba(96,165,250,.28), 0 8px 18px rgba(96,165,250,.14)",
+  background: "linear-gradient(180deg, #0ea5e9, #1d4ed8)",
+  boxShadow: "0 0 0 1px rgba(125,211,252,.55), 0 8px 22px rgba(59,130,246,.38)",
+  color: "#eff6ff",
 },
   studentShell: {
     position: "relative",
