@@ -972,23 +972,24 @@ const showAiSummary = !!feedback && !!studentSession?.isFinished;
 </Surface>
 
         <Surface style={{ minHeight: 320, flex: 1, overflow: "visible" }}>
-          <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-            <div style={{ padding: "16px 16px 8px 16px", flexShrink: 0 }}>
-              <div style={{ ...styles.moduleTitle, fontSize: 16, color: "#cffafe" }}>
-                <Piano size={18} color="#67e8f9" />
-                <span>双八度钢琴键盘</span>
-              </div>
-            </div>
-            <div style={{ minHeight: 260, flex: 1, padding: "0 16px 16px 16px" }}>
-              <PianoKeyboard
-  adaptive
-  showLabels={false}
-  onNoteClick={handlePianoNoteClick}
-  selectedKeyIds={selectedKeyIds}
-/>
-            </div>
-          </div>
-        </Surface>
+  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div style={{ padding: "16px 16px 8px 16px", flexShrink: 0 }}>
+      <div style={{ ...styles.moduleTitle, fontSize: 16, color: "#cffafe" }}>
+        <Piano size={18} color="#67e8f9" />
+        <span>双八度钢琴键盘</span>
+      </div>
+    </div>
+    <div style={{ minHeight: 260, flex: 1, padding: "0 16px 16px 16px" }}>
+      <PianoKeyboard
+        adaptive
+        showLabels={false}
+        onNoteClick={handlePianoNoteClick}
+        selectedKeyIds={selectedKeyIds}
+      />
+    </div>
+  </div>
+</Surface>
+
 {showAiSummary ? (
   <Surface>
     <div style={{ padding: 16 }}>
@@ -1046,6 +1047,7 @@ const showAiSummary = !!feedback && !!studentSession?.isFinished;
     </div>
   );
 }
+
 export default function App() {
   const initialView =
     typeof window !== "undefined" && window.location.pathname.startsWith("/student")
@@ -1161,20 +1163,22 @@ async function submitStudentAnswer(notesArg?: string[]) {
     }
 
     setStudentSession(data.studentSession);
-    setTeacherSession(data.teacherSession);
-    setSelectedNotes([]);
-        setAnswerFeedback({
-      type: data.isCorrect ? "success" : "error",
-      message: data.isCorrect
-        ? `回答正确，正确答案：${Array.isArray(data.correctAnswer) ? data.correctAnswer.join(" - ") : ""}`
-        : `回答错误，正确答案：${Array.isArray(data.correctAnswer) ? data.correctAnswer.join(" - ") : ""}`,
-    });
+setTeacherSession(data.teacherSession);
+setSelectedNotes([]);
+setSelectedKeyIds([]);
+setAnswerFeedback({
+  type: data.isCorrect ? "success" : "error",
+  message: data.isCorrect
+    ? `回答正确，正确答案：${Array.isArray(data.correctAnswer) ? data.correctAnswer.join(" - ") : ""}`
+    : `回答错误，正确答案：${Array.isArray(data.correctAnswer) ? data.correctAnswer.join(" - ") : ""}`,
+});
   } catch (error: any) {
     setAnswerFeedback({
       type: "error",
       message: error.message || "提交答案失败",
     });
     setSelectedNotes([]);
+setSelectedKeyIds([]);
   } finally {
     setAnswerSubmitting(false);
   }
