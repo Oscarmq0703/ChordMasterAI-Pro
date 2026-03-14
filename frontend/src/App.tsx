@@ -795,7 +795,7 @@ function StudentView({
   selectedKeyIds: string[];
 }) {
   const feedback = studentSession?.feedback ?? null;
-const showAiSummary = false;
+const showAiSummary = !!feedback && !!studentSession?.isFinished;
 
   return (
     <div style={styles.page}>
@@ -939,41 +939,35 @@ const showAiSummary = false;
 </Surface>
 
           <Surface style={{ gridColumn: "span 4" }}>
-            <div style={{ padding: 16 }}>
-              <div style={styles.sectionLabel}>答题进度</div>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 20, marginTop: 8 }}>
-                <div>
-                  <div style={styles.scoreBig}>
-                    {studentSession?.totalQuestions
-                      ? `${studentSession.completedCount} / ${studentSession.totalQuestions}`
-                      : "0 / 10"}
-                  </div>
-                  <div style={styles.scoreSub}>已提交题数</div>
-                </div>
-                <div>
-                  <div style={styles.scoreBig}>{studentSession?.correctCount ?? 0}</div>
-                  <div style={styles.scoreSub}>正确题目数量</div>
-                </div>
-              </div>
-            </div>
-          </Surface>
-        </div>
-
-              <Surface>
   <div style={{ padding: 16 }}>
-    <div style={styles.feedbackHead}>
-      <BrainCircuit size={16} color="#f0abfc" />
-      <span>即时反馈区</span>
+    <div style={styles.sectionLabel}>答题进度</div>
+
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 20, marginTop: 8 }}>
+      <div>
+        <div style={styles.scoreBig}>
+          {studentSession?.totalQuestions
+            ? `${studentSession.completedCount} / ${studentSession.totalQuestions}`
+            : "0 / 10"}
+        </div>
+        <div style={styles.scoreSub}>已提交题数</div>
+      </div>
+      <div>
+        <div style={styles.scoreBig}>{studentSession?.correctCount ?? 0}</div>
+        <div style={styles.scoreSub}>正确题目数量</div>
+      </div>
     </div>
 
-    <div
-      style={{
-        ...styles.instantFeedback,
-        ...(answerFeedback.type === "error" ? styles.instantWrong : styles.instantCorrect),
-      }}
-    >
-      {answerFeedback.message || "提交答案后，这里会显示本题正误反馈"}
-    </div>
+    {answerFeedback.message ? (
+      <div
+        style={{
+          marginTop: 14,
+          ...styles.instantFeedback,
+          ...(answerFeedback.type === "error" ? styles.instantWrong : styles.instantCorrect),
+        }}
+      >
+        {answerFeedback.type === "success" ? "本题正确" : "本题错误"}
+      </div>
+    ) : null}
   </div>
 </Surface>
 
@@ -995,6 +989,59 @@ const showAiSummary = false;
             </div>
           </div>
         </Surface>
+{showAiSummary ? (
+  <Surface>
+    <div style={{ padding: 16 }}>
+      <div style={styles.feedbackHead}>
+        <BrainCircuit size={16} color="#f0abfc" />
+        <span>AI智能反馈</span>
+      </div>
+
+      <div style={styles.feedbackSummaryWrap}>
+        <div style={styles.feedbackMetricRow}>
+          <div style={styles.feedbackMetricCard}>
+            <div style={styles.feedbackMetricValue}>{feedback.accuracy}%</div>
+            <div style={styles.feedbackMetricLabel}>正确率</div>
+          </div>
+          <div style={styles.feedbackMetricCard}>
+            <div style={styles.feedbackMetricValue}>{feedback.correctCount}</div>
+            <div style={styles.feedbackMetricLabel}>答对题数</div>
+          </div>
+          <div style={styles.feedbackMetricCard}>
+            <div style={styles.feedbackMetricValue}>{feedback.totalAnswered}</div>
+            <div style={styles.feedbackMetricLabel}>完成题数</div>
+          </div>
+        </div>
+
+        <div style={styles.aiFeedbackCard}>
+          <div style={styles.feedbackBlockTitle}>本轮学习反馈</div>
+          <div>{feedback.summary}</div>
+        </div>
+
+        <div style={styles.aiAdviceCard}>
+          <div style={styles.feedbackBlockTitle}>薄弱点分析</div>
+          <div style={{ marginBottom: 10 }}>{feedback.focus}</div>
+
+          {feedback.weakTypes?.length ? (
+            <div style={styles.tagRow}>
+              {feedback.weakTypes.map((type) => (
+                <span key={type} style={styles.tag}>
+                  {getChordTypeLabel(type)}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <div style={styles.feedbackBlockTitle}>后续学习建议</div>
+          <div style={{ marginBottom: 10 }}>{feedback.suggestion}</div>
+
+          <div style={styles.feedbackBlockTitle}>下一步练习方向</div>
+          <div>{feedback.nextStep}</div>
+        </div>
+      </div>
+    </div>
+  </Surface>
+) : null}
       </div>
     </div>
   );
@@ -1179,6 +1226,13 @@ function handlePianoNoteClick(keyId: string, note: string) {
     return;
   }
 
+  if (answerFeedback.message) {
+    setAnswerFeedback({
+      type: "",
+      message: "",
+    });
+  }
+
   const expectedCount =
     studentSession.currentQuestion.type === "maj7" ||
     studentSession.currentQuestion.type === "min7" ||
@@ -1284,10 +1338,6 @@ useEffect(() => {
 
   setSelectedNotes([]);
   setSelectedKeyIds([]);
-  setAnswerFeedback({
-    type: "",
-    message: "",
-  });
 }, [view, studentSession?.currentQuestion?.id]);
 
   const studentJoinUrl = useMemo(() => {
