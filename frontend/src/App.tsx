@@ -1279,6 +1279,17 @@ useEffect(() => {
   }
 }, [view, sessionId]);
 
+useEffect(() => {
+  if (view !== "student") return;
+
+  setSelectedNotes([]);
+  setSelectedKeyIds([]);
+  setAnswerFeedback({
+    type: "",
+    message: "",
+  });
+}, [view, studentSession?.currentQuestion?.id]);
+
   const studentJoinUrl = useMemo(() => {
     if (!sessionId || typeof window === "undefined") return "";
     return `${window.location.origin}/student?session=${sessionId}`;
