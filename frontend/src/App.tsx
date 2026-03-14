@@ -298,10 +298,12 @@ function PianoKeyboard({
   adaptive = false,
   showLabels = false,
   onNoteClick,
+  selectedNotes = [],
 }: {
   adaptive?: boolean;
   showLabels?: boolean;
   onNoteClick?: (note: string) => void;
+  selectedNotes?: string[];
 }) {
   const [activeKeys, setActiveKeys] = useState<string[]>([]);
 
@@ -336,7 +338,8 @@ function PianoKeyboard({
         <div style={{ display: "flex", height: "100%" }}>
           {whiteKeys.map((key, index) => {
             const keyId = `white-${key}-${index}`;
-            const active = isKeyActive(keyId);
+const active = isKeyActive(keyId);
+const selected = selectedNotes.includes(key);
 
             return (
               <button
@@ -344,11 +347,12 @@ function PianoKeyboard({
                 type="button"
                 onClick={() => triggerKeyFeedback(keyId, key)}
                 style={{
-                  ...styles.whiteKey,
-                  ...(active ? styles.whiteKeyActive : {}),
-                  width: adaptive ? `${100 / whiteKeys.length}%` : whiteWidth,
-                  height: "100%",
-                }}
+  ...styles.whiteKey,
+  ...(selected ? styles.whiteKeySelected : {}),
+  ...(active ? styles.whiteKeyActive : {}),
+  width: adaptive ? `${100 / whiteKeys.length}%` : whiteWidth,
+  height: "100%",
+}}
               >
                 {showLabels ? key : null}
               </button>
@@ -358,7 +362,8 @@ function PianoKeyboard({
 
         {blackKeys.map((key, index) => {
           const keyId = `black-${key.note}-${index}`;
-          const active = isKeyActive(keyId);
+const active = isKeyActive(keyId);
+const selected = selectedNotes.includes(key.note);
 
           const left = adaptive
             ? `calc(${((key.afterWhiteIndex + 1) / whiteKeys.length) * 100}% - ${(blackWidth / keyboardWidth) * 50}%)`
@@ -382,10 +387,11 @@ function PianoKeyboard({
               type="button"
               onClick={() => triggerKeyFeedback(keyId, key.note)}
               style={{
-                ...styles.blackKey,
-                ...(active ? styles.blackKeyActive : {}),
-                ...blackStyle,
-              }}
+  ...styles.blackKey,
+  ...(selected ? styles.blackKeySelected : {}),
+  ...(active ? styles.blackKeyActive : {}),
+  ...blackStyle,
+}}
             >
               {showLabels ? key.note : null}
             </button>
@@ -980,6 +986,7 @@ const showAiSummary = false;
   adaptive
   showLabels={false}
   onNoteClick={handlePianoNoteClick}
+  selectedNotes={selectedNotes}
 />
             </div>
           </div>
@@ -1739,6 +1746,15 @@ blackKeyActive: {
   background: "linear-gradient(180deg, #3f3f46, #18181b)",
   boxShadow: "0 0 0 1px rgba(103,232,249,.35), 0 10px 26px rgba(103,232,249,.22)",
   transition: "all 0.08s ease",
+},
+whiteKeySelected: {
+  background: "linear-gradient(180deg, #f8fafc, #dbeafe)",
+  boxShadow: "inset 0 0 0 1px rgba(96,165,250,.28), 0 8px 18px rgba(96,165,250,.12)",
+},
+
+blackKeySelected: {
+  background: "linear-gradient(180deg, #27272a, #0f172a)",
+  boxShadow: "inset 0 0 0 1px rgba(96,165,250,.28), 0 8px 18px rgba(96,165,250,.14)",
 },
   studentShell: {
     position: "relative",
