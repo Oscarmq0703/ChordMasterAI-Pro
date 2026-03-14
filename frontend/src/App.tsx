@@ -348,7 +348,7 @@ const selected = selectedNotes.includes(key);
                 onClick={() => triggerKeyFeedback(keyId, key)}
                 style={{
   ...styles.whiteKey,
-  ...(selected ? styles.whiteKeySelected : {}),
+  ...(selected ? (styles.whiteKeySelected || {}) : {}),
   ...(active ? styles.whiteKeyActive : {}),
   width: adaptive ? `${100 / whiteKeys.length}%` : whiteWidth,
   height: "100%",
@@ -388,7 +388,7 @@ const selected = selectedNotes.includes(key.note);
               onClick={() => triggerKeyFeedback(keyId, key.note)}
               style={{
   ...styles.blackKey,
-  ...(selected ? styles.blackKeySelected : {}),
+  ...(selected ? (styles.blackKeySelected || {}) : {}),
   ...(active ? styles.blackKeyActive : {}),
   ...blackStyle,
 }}
@@ -1751,7 +1751,6 @@ whiteKeySelected: {
   background: "linear-gradient(180deg, #f8fafc, #dbeafe)",
   boxShadow: "inset 0 0 0 1px rgba(96,165,250,.28), 0 8px 18px rgba(96,165,250,.12)",
 },
-
 blackKeySelected: {
   background: "linear-gradient(180deg, #27272a, #0f172a)",
   boxShadow: "inset 0 0 0 1px rgba(96,165,250,.28), 0 8px 18px rgba(96,165,250,.14)",
