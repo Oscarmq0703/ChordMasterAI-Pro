@@ -303,11 +303,24 @@ function PianoKeyboard({
   showLabels?: boolean;
   onNoteClick?: (note: string) => void;
 }) {
+  const [activeNotes, setActiveNotes] = useState<string[]>([]);
+
   const whiteWidth = 44;
   const whiteHeight = 170;
   const blackWidth = 28;
   const blackHeight = 104;
   const keyboardWidth = whiteKeys.length * whiteWidth;
+
+  const triggerKeyFeedback = (note: string) => {
+    setActiveNotes((prev) => [...prev, `${note}-${Date.now()}-${Math.random()}`]);
+    onNoteClick?.(note);
+
+    setTimeout(() => {
+      setActiveNotes((prev) => prev.filter((item) => !item.startsWith(`${note}-`)));
+    }, 180);
+  };
+
+  const isNoteActive = (note: string) => activeNotes.some((item) => item.startsWith(`${note}-`));
 
   const wrapStyle = adaptive
     ? { ...styles.keyboardWrap, padding: 12 }
@@ -321,23 +334,30 @@ function PianoKeyboard({
     <div style={wrapStyle}>
       <div style={layoutStyle}>
         <div style={{ display: "flex", height: "100%" }}>
-          {whiteKeys.map((key, index) => (
-            <button
-              key={`${key}-${index}`}
-              type="button"
-              onClick={() => onNoteClick?.(key)}
-              style={{
-                ...styles.whiteKey,
-                width: adaptive ? `${100 / whiteKeys.length}%` : whiteWidth,
-                height: "100%",
-              }}
-            >
-              {showLabels ? key : null}
-            </button>
-          ))}
+          {whiteKeys.map((key, index) => {
+            const active = isNoteActive(key);
+
+            return (
+              <button
+                key={`${key}-${index}`}
+                type="button"
+                onClick={() => triggerKeyFeedback(key)}
+                style={{
+                  ...styles.whiteKey,
+                  ...(active ? styles.whiteKeyActive : {}),
+                  width: adaptive ? `${100 / whiteKeys.length}%` : whiteWidth,
+                  height: "100%",
+                }}
+              >
+                {showLabels ? key : null}
+              </button>
+            );
+          })}
         </div>
 
         {blackKeys.map((key, index) => {
+          const active = isNoteActive(key.note);
+
           const left = adaptive
             ? `calc(${((key.afterWhiteIndex + 1) / whiteKeys.length) * 100}% - ${(blackWidth / keyboardWidth) * 50}%)`
             : (key.afterWhiteIndex + 1) * whiteWidth - blackWidth / 2;
@@ -358,8 +378,12 @@ function PianoKeyboard({
             <button
               key={`${key.note}-${index}`}
               type="button"
-              onClick={() => onNoteClick?.(key.note)}
-              style={{ ...styles.blackKey, ...blackStyle }}
+              onClick={() => triggerKeyFeedback(key.note)}
+              style={{
+                ...styles.blackKey,
+                ...(active ? styles.blackKeyActive : {}),
+                ...blackStyle,
+              }}
             >
               {showLabels ? key.note : null}
             </button>
@@ -1672,33 +1696,48 @@ const styles: Record<string, CSSProperties> = {
     background: "linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03))",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
   },
-  whiteKey: {
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    border: "1px solid rgba(0,0,0,.08)",
-    background: "linear-gradient(180deg, #ffffff, #f4f4f5)",
-    paddingBottom: 8,
-    fontSize: 10,
-    fontWeight: 500,
-    color: "#3f3f46",
-    boxShadow: "0 10px 18px rgba(0,0,0,.08)",
-  },
+ whiteKey: {
+  display: "flex",
+  alignItems: "flex-end",
+  justifyContent: "center",
+  border: "1px solid rgba(0,0,0,.08)",
+  background: "linear-gradient(180deg, #ffffff, #f4f4f5)",
+  paddingBottom: 8,
+  fontSize: 10,
+  fontWeight: 500,
+  color: "#3f3f46",
+  boxShadow: "0 10px 18px rgba(0,0,0,.08)",
+  transition: "all 0.08s ease",
+},
   blackKey: {
-    position: "absolute",
-    top: 0,
-    zIndex: 10,
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    borderRadius: "0 0 10px 10px",
-    border: "1px solid rgba(0,0,0,.35)",
-    background: "linear-gradient(180deg, #1d1d1f, #050505)",
-    paddingBottom: 6,
-    fontSize: 9,
-    color: "#d4d4d8",
-    boxShadow: "0 10px 24px rgba(0,0,0,.34)",
-  },
+  position: "absolute",
+  top: 0,
+  zIndex: 10,
+  display: "flex",
+  alignItems: "flex-end",
+  justifyContent: "center",
+  borderRadius: "0 0 10px 10px",
+  border: "1px solid rgba(0,0,0,.35)",
+  background: "linear-gradient(180deg, #1d1d1f, #050505)",
+  paddingBottom: 6,
+  fontSize: 9,
+  color: "#d4d4d8",
+  boxShadow: "0 10px 24px rgba(0,0,0,.34)",
+  transition: "all 0.08s ease",
+},
+whiteKeyActive: {
+  transform: "translateY(2px) scale(0.99)",
+  background: "linear-gradient(180deg, #fefce8, #fde68a)",
+  boxShadow: "0 0 0 1px rgba(251,191,36,.35), 0 10px 24px rgba(251,191,36,.28)",
+  transition: "all 0.08s ease",
+},
+
+blackKeyActive: {
+  transform: "translateY(2px) scale(0.98)",
+  background: "linear-gradient(180deg, #3f3f46, #18181b)",
+  boxShadow: "0 0 0 1px rgba(103,232,249,.35), 0 10px 26px rgba(103,232,249,.22)",
+  transition: "all 0.08s ease",
+},
   studentShell: {
     position: "relative",
     maxWidth: 980,
