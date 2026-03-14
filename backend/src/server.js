@@ -538,13 +538,14 @@ app.post("/api/session/:sessionId/start", async (req, res) => {
         byQuestion: buildQuestionStats(questions),
       },
       students: (session.students || []).map((student) => ({
-  ...student,
-  currentQuestionIndex: 0,
-  answers: [],
-  correctCount: 0,
-  wrongCount: 0,
-  feedback: null,
-})),
+        ...student,
+        currentQuestionIndex: 0,
+        answers: [],
+        correctCount: 0,
+        wrongCount: 0,
+        feedback: null,
+      })),
+    };
 
     await saveSession(sessionId, nextSession);
 
