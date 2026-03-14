@@ -1,4 +1,4 @@
-import React, { CSSProperties, useEffect, useState } from "react";
+import React, { CSSProperties, useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   Wifi,
@@ -391,7 +391,7 @@ function TeacherView({
   startTeacherQuiz: () => Promise<void>;
 }) {
   const [mode, setMode] = useState("name");
-  const classFeedback = teacherSession?.classFeedback || null;
+  const classFeedback = null;
   const toggleChord = (item: string) => {
     setSelectedChordTypes((prev) =>
       prev.includes(item) ? prev.filter((value) => value !== item) : [...prev, item],
@@ -674,14 +674,7 @@ function TeacherView({
         已完成 {student.answeredCount} 题
       </div>
 
-      {student.feedback ? (
-        <div style={styles.teacherMiniFeedback}>
-          正确率 {student.feedback.accuracy}% ·{" "}
-          {student.feedback.weakTypes?.length
-            ? `薄弱：${student.feedback.weakTypes.map((type: string) => getChordTypeLabel(type)).join("、")}`
-            : "暂无集中薄弱点"}
-        </div>
-      ) : null}
+  
     </div>
 
     <div style={styles.progressCol}>
@@ -766,8 +759,8 @@ function StudentView({
   };
   handlePianoNoteClick: (note: string) => void;
 }) {
-  const feedback = studentSession?.feedback || null;
-  const showAiSummary = !!feedback && !!studentSession?.isFinished;
+  const feedback = studentSession?.feedback ?? null;
+const showAiSummary = false;
 
   return (
     <div style={styles.page}>
@@ -932,67 +925,22 @@ function StudentView({
         </div>
 
               <Surface>
-          <div style={{ padding: 16 }}>
-            <div style={styles.feedbackHead}>
-              <BrainCircuit size={16} color="#f0abfc" />
-              <span>{showAiSummary ? "AI 听想反馈" : "即时反馈区"}</span>
-            </div>
+  <div style={{ padding: 16 }}>
+    <div style={styles.feedbackHead}>
+      <BrainCircuit size={16} color="#f0abfc" />
+      <span>即时反馈区</span>
+    </div>
 
-            {!showAiSummary ? (
-              <div
-                style={{
-                  ...styles.instantFeedback,
-                  ...(answerFeedback.type === "error" ? styles.instantWrong : styles.instantCorrect),
-                }}
-              >
-                {answerFeedback.message || "提交答案后，这里会显示本题正误反馈"}
-              </div>
-            ) : (
-              <div style={styles.feedbackSummaryWrap}>
-                <div style={styles.feedbackMetricRow}>
-                  <div style={styles.feedbackMetricCard}>
-                    <div style={styles.feedbackMetricValue}>{feedback.accuracy}%</div>
-                    <div style={styles.feedbackMetricLabel}>正确率</div>
-                  </div>
-                  <div style={styles.feedbackMetricCard}>
-                    <div style={styles.feedbackMetricValue}>{feedback.correctCount}</div>
-                    <div style={styles.feedbackMetricLabel}>答对题数</div>
-                  </div>
-                  <div style={styles.feedbackMetricCard}>
-                    <div style={styles.feedbackMetricValue}>{feedback.totalAnswered}</div>
-                    <div style={styles.feedbackMetricLabel}>完成题数</div>
-                  </div>
-                </div>
-
-                <div style={styles.aiFeedbackCard}>
-                  <div style={styles.feedbackBlockTitle}>总体评价</div>
-                  <div>{feedback.summary}</div>
-                </div>
-
-                <div style={styles.aiAdviceCard}>
-                  <div style={styles.feedbackBlockTitle}>薄弱点分析</div>
-                  <div style={{ marginBottom: 10 }}>{feedback.focus}</div>
-
-                  {feedback.weakTypes?.length ? (
-                    <div style={styles.tagRow}>
-                      {feedback.weakTypes.map((type) => (
-                        <span key={type} style={styles.tag}>
-                          {getChordTypeLabel(type)}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  <div style={styles.feedbackBlockTitle}>练习建议</div>
-                  <div style={{ marginBottom: 10 }}>{feedback.suggestion}</div>
-
-                  <div style={styles.feedbackBlockTitle}>下一步训练</div>
-                  <div>{feedback.nextStep}</div>
-                </div>
-              </div>
-            )}
-          </div>
-        </Surface>
+    <div
+      style={{
+        ...styles.instantFeedback,
+        ...(answerFeedback.type === "error" ? styles.instantWrong : styles.instantCorrect),
+      }}
+    >
+      {answerFeedback.message || "提交答案后，这里会显示本题正误反馈"}
+    </div>
+  </div>
+</Surface>
 
         <Surface style={{ minHeight: 320, flex: 1, overflow: "visible" }}>
           <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
