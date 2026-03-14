@@ -971,6 +971,8 @@ const showAiSummary = !!feedback && !!studentSession?.isFinished;
   </div>
 </Surface>
 
+        </div>
+
         <Surface style={{ minHeight: 320, flex: 1, overflow: "visible" }}>
   <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
     <div style={{ padding: "16px 16px 8px 16px", flexShrink: 0 }}>
