@@ -303,7 +303,7 @@ function PianoKeyboard({
   showLabels?: boolean;
   onNoteClick?: (note: string) => void;
 }) {
-  const [activeNotes, setActiveNotes] = useState<string[]>([]);
+  const [activeKeys, setActiveKeys] = useState<string[]>([]);
 
   const whiteWidth = 44;
   const whiteHeight = 170;
@@ -311,16 +311,16 @@ function PianoKeyboard({
   const blackHeight = 104;
   const keyboardWidth = whiteKeys.length * whiteWidth;
 
-  const triggerKeyFeedback = (note: string) => {
-    setActiveNotes((prev) => [...prev, `${note}-${Date.now()}-${Math.random()}`]);
+  const triggerKeyFeedback = (keyId: string, note: string) => {
+    setActiveKeys((prev) => [...prev, keyId]);
     onNoteClick?.(note);
 
     setTimeout(() => {
-      setActiveNotes((prev) => prev.filter((item) => !item.startsWith(`${note}-`)));
+      setActiveKeys((prev) => prev.filter((item) => item !== keyId));
     }, 180);
   };
 
-  const isNoteActive = (note: string) => activeNotes.some((item) => item.startsWith(`${note}-`));
+  const isKeyActive = (keyId: string) => activeKeys.includes(keyId);
 
   const wrapStyle = adaptive
     ? { ...styles.keyboardWrap, padding: 12 }
@@ -335,13 +335,14 @@ function PianoKeyboard({
       <div style={layoutStyle}>
         <div style={{ display: "flex", height: "100%" }}>
           {whiteKeys.map((key, index) => {
-            const active = isNoteActive(key);
+            const keyId = `white-${key}-${index}`;
+            const active = isKeyActive(keyId);
 
             return (
               <button
-                key={`${key}-${index}`}
+                key={keyId}
                 type="button"
-                onClick={() => triggerKeyFeedback(key)}
+                onClick={() => triggerKeyFeedback(keyId, key)}
                 style={{
                   ...styles.whiteKey,
                   ...(active ? styles.whiteKeyActive : {}),
@@ -356,7 +357,8 @@ function PianoKeyboard({
         </div>
 
         {blackKeys.map((key, index) => {
-          const active = isNoteActive(key.note);
+          const keyId = `black-${key.note}-${index}`;
+          const active = isKeyActive(keyId);
 
           const left = adaptive
             ? `calc(${((key.afterWhiteIndex + 1) / whiteKeys.length) * 100}% - ${(blackWidth / keyboardWidth) * 50}%)`
@@ -376,9 +378,9 @@ function PianoKeyboard({
 
           return (
             <button
-              key={`${key.note}-${index}`}
+              key={keyId}
               type="button"
-              onClick={() => triggerKeyFeedback(key.note)}
+              onClick={() => triggerKeyFeedback(keyId, key.note)}
               style={{
                 ...styles.blackKey,
                 ...(active ? styles.blackKeyActive : {}),
@@ -976,7 +978,7 @@ const showAiSummary = false;
             <div style={{ minHeight: 260, flex: 1, padding: "0 16px 16px 16px" }}>
               <PianoKeyboard
   adaptive
-  showLabels={true}
+  showLabels={false}
   onNoteClick={handlePianoNoteClick}
 />
             </div>
