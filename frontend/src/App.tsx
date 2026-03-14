@@ -775,6 +775,7 @@ function StudentView({
   answerSubmitting,
   answerFeedback,
   handlePianoNoteClick,
+  selectedNotes,
 }: {
   sessionId: string;
   studentId: string;
@@ -789,6 +790,7 @@ function StudentView({
     message: string;
   };
   handlePianoNoteClick: (note: string) => void;
+  selectedNotes: string[];
 }) {
   const feedback = studentSession?.feedback ?? null;
 const showAiSummary = false;
@@ -1306,6 +1308,7 @@ useEffect(() => {
   answerSubmitting={answerSubmitting}
   answerFeedback={answerFeedback}
   handlePianoNoteClick={handlePianoNoteClick}
+  selectedNotes={selectedNotes}
 />
       )}
     </div>
