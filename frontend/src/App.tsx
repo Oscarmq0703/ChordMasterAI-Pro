@@ -416,13 +416,14 @@ function TeacherView({
   setSelectedChordTypes: React.Dispatch<React.SetStateAction<string[]>>;
   sessionId: string;
   studentJoinUrl: string;
-  const classFeedback = teacherSession?.classFeedback ?? null;
+  teacherSession: TeacherSession | null;
   sessionLoading: boolean;
   sessionError: string;
   startTeacherQuiz: () => Promise<void>;
 }) {
   const [mode, setMode] = useState("name");
   const classFeedback = teacherSession?.classFeedback ?? null;
+
   const toggleChord = (item: string) => {
     setSelectedChordTypes((prev) =>
       prev.includes(item) ? prev.filter((value) => value !== item) : [...prev, item],
