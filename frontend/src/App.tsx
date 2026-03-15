@@ -27,6 +27,25 @@ import {
 const API_BASE =
   import.meta.env.VITE_API_BASE || "https://chordmasterai-backend.onrender.com";
 
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeout = 15000
+) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function getSessionIdFromUrl() {
   if (typeof window === "undefined") return "";
   const url = new URL(window.location.href);
@@ -1088,10 +1107,14 @@ const [answerFeedback, setAnswerFeedback] = useState<{
   async function createSessionIfNeeded() {
     if (sessionId) return sessionId;
 
-    const res = await fetch(`${API_BASE}/api/session/create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
+   const res = await fetchWithTimeout(
+  `${API_BASE}/api/session/create`,
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  },
+  15000
+);
 
     const data = await res.json();
 
@@ -1292,14 +1315,18 @@ function handlePianoNoteClick(keyId: string, note: string) {
 
       const sid = await createSessionIfNeeded();
 
-      const res = await fetch(`${API_BASE}/api/session/${sid}/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chordTypes: selectedChordTypes,
-          count: 10,
-        }),
-      });
+      const res = await fetchWithTimeout(
+  `${API_BASE}/api/session/${sid}/start`,
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chordTypes: selectedChordTypes,
+      count: 10,
+    }),
+  },
+  20000
+);
 
       const data = await res.json();
 
