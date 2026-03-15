@@ -1,4 +1,5 @@
 import React, { CSSProperties, useEffect, useMemo, useState } from "react";
+import { playPianoSample } from "./audio";
 import {
   BarChart3,
   Wifi,
@@ -1235,6 +1236,16 @@ function handlePianoNoteClick(keyId: string, note: string) {
   if (!studentId || !studentSession?.currentQuestion || studentSession?.isFinished || answerSubmitting) {
     return;
   }
+
+  const octave = (() => {
+    const parts = keyId.split("-");
+    const index = Number(parts[2]);
+    return index >= 7 ? 5 : 4;
+  })();
+
+  playPianoSample(note, octave).catch((err) => {
+    console.error("playPianoSample failed:", err);
+  });
 
   if (answerFeedback.message) {
     setAnswerFeedback({
