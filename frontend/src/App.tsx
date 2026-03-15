@@ -1336,10 +1336,14 @@ function handlePianoNoteClick(keyId: string, note: string) {
 
       setTeacherSession(data.session);
     } catch (error: any) {
-      setSessionError(error.message || "开始出题失败");
-    } finally {
-      setSessionLoading(false);
-    }
+  if (error?.name === "AbortError") {
+    setSessionError("请求超时：后端可能正在冷启动，请稍后再试一次");
+  } else {
+    setSessionError(error.message || "开始出题失败");
+  }
+} finally {
+  setSessionLoading(false);
+}
   }
 useEffect(() => {
   if (view !== "teacher" || !sessionId) return;
