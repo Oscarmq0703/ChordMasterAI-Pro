@@ -511,8 +511,11 @@ function TeacherView({
           <div style={styles.heroGlow} />
           <div style={styles.heroContent}>
             <div style={{ maxWidth: 860 }}>
-              <div style={styles.heroEyebrow}>ChordMasterAI Pro</div>
-              <h1 style={styles.heroTitle}>ChordMasterAI Pro</h1>
+              <h1 style={styles.heroTitle}>
+  ChordMaster<span style={styles.heroTitleAI}>AI</span>
+  <span style={styles.heroTitleGap}> </span>
+  Pro
+</h1>
               <p style={styles.heroDesc}>
                 以课堂联机、听想训练与即时反馈为核心，连接教师出题、学生弹奏、班级统计与个性化建议，
                 打造更具音乐感知深度的和弦学习体验。
@@ -907,7 +910,7 @@ const showAiSummary =
                 <Smartphone size={18} />
                 <span>学生端</span>
               </div>
-              <div style={{ marginTop: 8, fontSize: 12, color: "rgba(255,255,255,.40)" }}>建议横屏操作</div>
+              <div style={styles.studentLandscapeHint}>建议横屏操作</div>
             </div>
 
             <div style={{ ...styles.studentInfoCard, gridColumn: "span 6" }}>
@@ -2244,5 +2247,21 @@ chordGroupTitleSuspended: {
 chordGroupTitleFunction: {
   color: "#f9a8d4",
   textShadow: "0 0 18px rgba(249,168,212,.16)",
+},
+heroTitleAI: {
+  color: "#a78bfa",
+  textShadow: "0 0 18px rgba(167,139,250,.22)",
+},
+
+heroTitleGap: {
+  display: "inline-block",
+  width: "0.22em",
+},
+studentLandscapeHint: {
+  marginTop: 10,
+  fontSize: 15,
+  fontWeight: 700,
+  color: "#fcd34d",
+  letterSpacing: ".02em",
 },
 };
