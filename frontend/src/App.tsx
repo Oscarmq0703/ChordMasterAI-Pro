@@ -525,7 +525,7 @@ function TeacherView({
         </section>
 
         <div style={styles.grid12}>
-          <Surface style={{ gridColumn: "span 4", overflow: "hidden" }}>
+          <Surface style={{ gridColumn: "span 3", overflow: "hidden" }}>
             <div style={styles.cardPad}>
               <SectionTitle
                 eyebrow="Student Access"
@@ -578,7 +578,7 @@ function TeacherView({
             </div>
           </Surface>
 
-          <Surface style={{ gridColumn: "span 8", overflow: "hidden" }}>
+          <Surface style={{ gridColumn: "span 9", overflow: "hidden" }}>
             <div style={styles.cardPad}>
               <SectionTitle
                 eyebrow="Practice Control"
@@ -598,9 +598,51 @@ function TeacherView({
                 </div>
 
                 <div style={styles.chordGroupWrap}>
-  {chordTypeGroups.map((group) => (
-    <div key={group.title} style={styles.chordGroupCard}>
-      <div style={styles.chordGroupTitle}>{group.title}</div>
+  {chordTypeGroups.map((group) => {
+    const groupTitleStyle =
+      group.title === "三和弦"
+        ? styles.chordGroupTitleTriad
+        : group.title === "七和弦"
+        ? styles.chordGroupTitleSeventh
+        : group.title === "挂留和弦"
+        ? styles.chordGroupTitleSuspended
+        : styles.chordGroupTitleFunction;
+
+    return (
+      <div key={group.title} style={styles.chordGroupCard}>
+        <div style={{ ...styles.chordGroupTitle, ...groupTitleStyle }}>
+          {group.title}
+        </div>
+
+        <div style={styles.chordGrid}>
+          {group.items.map((item) => {
+            const checked = selectedChordTypes.includes(item.value);
+
+            return (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => toggleChord(item.value)}
+                style={{
+                  ...styles.chordItem,
+                  ...(checked ? styles.chordItemChecked : {}),
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  readOnly
+                  style={{ width: 16, height: 16 }}
+                />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  })}
+</div>
 
       <div style={styles.chordGrid}>
         {group.items.map((item) => {
@@ -1667,21 +1709,23 @@ const styles: Record<string, CSSProperties> = {
   },
   chordGrid: {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-  gap: 12,
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: 10,
 },
   chordItem: {
-    borderRadius: 22,
-    border: "1px solid rgba(255,255,255,.08)",
-    background: "rgba(255,255,255,.035)",
-    color: "rgba(255,255,255,.82)",
-    padding: "14px 14px",
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    cursor: "pointer",
-    textAlign: "left",
-  },
+  borderRadius: 18,
+  border: "1px solid rgba(255,255,255,.08)",
+  background: "rgba(255,255,255,.035)",
+  color: "rgba(255,255,255,.82)",
+  padding: "11px 12px",
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  cursor: "pointer",
+  textAlign: "left",
+  fontSize: 14,
+  lineHeight: 1.35,
+},
   chordItemChecked: {
     border: "1px solid rgba(255,255,255,.14)",
     background: "rgba(255,255,255,.09)",
@@ -1717,7 +1761,7 @@ const styles: Record<string, CSSProperties> = {
   qrPanel: {
     position: "relative",
     margin: "0 auto",
-    width: "min(100%, 288px)",
+    width: "min(100%, 220px)",
     aspectRatio: "1 / 1",
     borderRadius: 30,
     border: "1px solid rgba(255,255,255,.14)",
@@ -1729,8 +1773,8 @@ const styles: Record<string, CSSProperties> = {
     padding: 16,
   },
   qrImage: {
-    width: 240,
-    height: 240,
+  width: 180,
+  height: 180,
     borderRadius: 18,
     background: "#fff",
     padding: 12,
@@ -2202,14 +2246,32 @@ chordGroupCard: {
   borderRadius: 24,
   border: "1px solid rgba(255,255,255,.08)",
   background: "rgba(255,255,255,.03)",
-  padding: 16,
+  padding: 14,
 },
 
 chordGroupTitle: {
-  marginBottom: 12,
-  fontSize: 14,
-  fontWeight: 700,
-  color: "rgba(255,255,255,.86)",
+  marginBottom: 14,
+  fontSize: 18,
+  fontWeight: 800,
   letterSpacing: ".02em",
+},
+chordGroupTitleTriad: {
+  color: "#93c5fd",
+  textShadow: "0 0 18px rgba(147,197,253,.18)",
+},
+
+chordGroupTitleSeventh: {
+  color: "#c4b5fd",
+  textShadow: "0 0 18px rgba(196,181,253,.18)",
+},
+
+chordGroupTitleSuspended: {
+  color: "#6ee7b7",
+  textShadow: "0 0 18px rgba(110,231,183,.16)",
+},
+
+chordGroupTitleFunction: {
+  color: "#f9a8d4",
+  textShadow: "0 0 18px rgba(249,168,212,.16)",
 },
 };
