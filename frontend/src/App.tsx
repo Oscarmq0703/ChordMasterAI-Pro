@@ -2211,5 +2211,5 @@ chordGroupTitle: {
   fontWeight: 700,
   color: "rgba(255,255,255,.86)",
   letterSpacing: ".02em",
-},chord
+},
 };
