@@ -643,36 +643,6 @@ function TeacherView({
     );
   })}
 </div>
-
-      <div style={styles.chordGrid}>
-        {group.items.map((item) => {
-          const checked = selectedChordTypes.includes(item.value);
-
-          return (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => toggleChord(item.value)}
-              style={{
-                ...styles.chordItem,
-                ...(checked ? styles.chordItemChecked : {}),
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                readOnly
-                style={{ width: 16, height: 16 }}
-              />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-    );
-  ))}
-</div>
               </div>
             </div>
           </Surface>
