@@ -174,29 +174,45 @@ type StudentSession = {
   feedback?: Feedback | null;
 };
 
-const chordTypeOptions = [
-  { label: "大三和弦", value: "major" },
-  { label: "小三和弦", value: "minor" },
-  { label: "减三和弦", value: "dim" },
-  { label: "增三和弦", value: "aug" },
-
-  { label: "属七和弦", value: "dom7" },
-  { label: "减七和弦", value: "dim7" },
-  { label: "半减七和弦", value: "m7b5" },
-  { label: "大七和弦", value: "maj7" },
-  { label: "小七和弦", value: "min7" },
-
-  { label: "挂二和弦", value: "sus2" },
-  { label: "挂四和弦", value: "sus4" },
-
-  { label: "那不勒斯六和弦", value: "n6" },
-  { label: "增六和弦", value: "it6" },
-  { label: "主四六和弦", value: "cad64" },
-
-  { label: "主和弦 I", value: "I" },
-  { label: "下属和弦 IV", value: "IV" },
-  { label: "属和弦 V", value: "V" },
-  { label: "属七和弦 V7", value: "V7" },
+const chordTypeGroups = [
+  {
+    title: "三和弦",
+    items: [
+      { label: "大三和弦", value: "major" },
+      { label: "小三和弦", value: "minor" },
+      { label: "减三和弦", value: "dim" },
+      { label: "增三和弦", value: "aug" },
+    ],
+  },
+  {
+    title: "七和弦",
+    items: [
+      { label: "属七和弦", value: "dom7" },
+      { label: "减七和弦", value: "dim7" },
+      { label: "半减七和弦", value: "m7b5" },
+      { label: "大七和弦", value: "maj7" },
+      { label: "小七和弦", value: "min7" },
+      { label: "属七和弦 V7", value: "V7" },
+    ],
+  },
+  {
+    title: "挂留和弦",
+    items: [
+      { label: "挂二和弦", value: "sus2" },
+      { label: "挂四和弦", value: "sus4" },
+    ],
+  },
+  {
+    title: "功能 / 色彩和声",
+    items: [
+      { label: "那不勒斯六和弦", value: "n6" },
+      { label: "增六和弦", value: "it6" },
+      { label: "主四六和弦", value: "cad64" },
+      { label: "主和弦 I", value: "I" },
+      { label: "下属和弦 IV", value: "IV" },
+      { label: "属和弦 V", value: "V" },
+    ],
+  },
 ];
 
 const chartData = Array.from({ length: 10 }, (_, index) => ({
@@ -581,25 +597,39 @@ function TeacherView({
                   <div style={styles.countBadge}>已选择 {selectedChordTypes.length} 类</div>
                 </div>
 
-                <div style={styles.chordGrid}>
-                  {chordTypeOptions.map((item) => {
-                    const checked = selectedChordTypes.includes(item.value);
-                    return (
-                      <button
-                        key={item.value}
-                        type="button"
-                        onClick={() => toggleChord(item.value)}
-                        style={{
-                          ...styles.chordItem,
-                          ...(checked ? styles.chordItemChecked : {}),
-                        }}
-                      >
-                        <input type="checkbox" checked={checked} readOnly style={{ width: 16, height: 16 }} />
-                        <span>{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <div style={styles.chordGroupWrap}>
+  {chordTypeGroups.map((group) => (
+    <div key={group.title} style={styles.chordGroupCard}>
+      <div style={styles.chordGroupTitle}>{group.title}</div>
+
+      <div style={styles.chordGrid}>
+        {group.items.map((item) => {
+          const checked = selectedChordTypes.includes(item.value);
+
+          return (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => toggleChord(item.value)}
+              style={{
+                ...styles.chordItem,
+                ...(checked ? styles.chordItemChecked : {}),
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                readOnly
+                style={{ width: 16, height: 16 }}
+              />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ))}
+</div>
               </div>
             </div>
           </Surface>
@@ -1636,10 +1666,10 @@ const styles: Record<string, CSSProperties> = {
     color: "rgba(255,255,255,.70)",
   },
   chordGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: 14,
-  },
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: 12,
+},
   chordItem: {
     borderRadius: 22,
     border: "1px solid rgba(255,255,255,.08)",
@@ -2163,4 +2193,23 @@ blackKeySelected: {
     lineHeight: 1.6,
     color: "rgba(255,255,255,.58)",
   },
+chordGroupWrap: {
+  display: "grid",
+  gap: 16,
+},
+
+chordGroupCard: {
+  borderRadius: 24,
+  border: "1px solid rgba(255,255,255,.08)",
+  background: "rgba(255,255,255,.03)",
+  padding: 16,
+},
+
+chordGroupTitle: {
+  marginBottom: 12,
+  fontSize: 14,
+  fontWeight: 700,
+  color: "rgba(255,255,255,.86)",
+  letterSpacing: ".02em",
+},chord
 };
