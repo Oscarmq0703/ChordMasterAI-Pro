@@ -192,14 +192,6 @@ const chordTypeGroups = [
       { label: "半减七和弦", value: "m7b5" },
       { label: "大七和弦", value: "maj7" },
       { label: "小七和弦", value: "min7" },
-      { label: "属七和弦 V7", value: "V7" },
-    ],
-  },
-  {
-    title: "挂留和弦",
-    items: [
-      { label: "挂二和弦", value: "sus2" },
-      { label: "挂四和弦", value: "sus4" },
     ],
   },
   {
