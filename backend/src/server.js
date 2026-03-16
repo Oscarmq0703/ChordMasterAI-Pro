@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { redis } from "./redis.js";
@@ -73,11 +74,25 @@ const CHORD_LIBRARY = {
   minor: { label: "小三和弦", suffix: "m" },
   dim: { label: "减三和弦", suffix: "dim" },
   aug: { label: "增三和弦", suffix: "aug" },
+
+  dom7: { label: "属七和弦", suffix: "7" },
+  dim7: { label: "减七和弦", suffix: "dim7" },
+  m7b5: { label: "半减七和弦", suffix: "m7b5" },
   maj7: { label: "大七和弦", suffix: "maj7" },
   min7: { label: "小七和弦", suffix: "m7" },
-  dom7: { label: "属七和弦", suffix: "7" },
-};
 
+  sus2: { label: "挂二和弦", suffix: "sus2" },
+  sus4: { label: "挂四和弦", suffix: "sus4" },
+
+  n6: { label: "那不勒斯六和弦", suffix: "N6" },
+  it6: { label: "增六和弦", suffix: "It+6" },
+  cad64: { label: "主四六和弦", suffix: "Cad64" },
+
+  I: { label: "主和弦 I", suffix: "I" },
+  IV: { label: "下属和弦 IV", suffix: "IV" },
+  V: { label: "属和弦 V", suffix: "V" },
+  V7: { label: "属七和弦 V7", suffix: "V7" },
+};
 const NOTE_TO_SEMITONE = {
   C: 0,
   "B#": 0,
@@ -122,9 +137,25 @@ const CHORD_INTERVALS = {
   minor: [0, 3, 7],
   dim: [0, 3, 6],
   aug: [0, 4, 8],
+
+  dom7: [0, 4, 7, 10],
+  dim7: [0, 3, 6, 9],
+  m7b5: [0, 3, 6, 10],
   maj7: [0, 4, 7, 11],
   min7: [0, 3, 7, 10],
-  dom7: [0, 4, 7, 10],
+
+  sus2: [0, 2, 7],
+  sus4: [0, 5, 7],
+
+  // 课堂简化版：按音集判题，不要求低音
+  n6: [0, 4, 7],     // 作为 bII 大三和弦音集使用
+  it6: [0, 4, 10],   // 课堂简化版增六和弦
+  cad64: [0, 4, 7],  // 主四六与 I 共音集，当前系统不判转位
+
+  I: [0, 4, 7],
+  IV: [0, 4, 7],
+  V: [0, 4, 7],
+  V7: [0, 4, 7, 10],
 };
 
 function sample(arr) {
@@ -144,8 +175,20 @@ function normalizeNote(note = "") {
   return NOTE_TO_SEMITONE[cleaned] ?? null;
 }
 
+function getFunctionalRootSemitone(root, type) {
+  const tonic = normalizeNote(root);
+  if (tonic === null) return null;
+
+  if (type === "I" || type === "cad64") return tonic;
+  if (type === "IV") return (tonic + 5) % 12;
+  if (type === "V" || type === "V7") return (tonic + 7) % 12;
+  if (type === "n6") return (tonic + 1) % 12; // bII，当前用升半音等音近似
+  if (type === "it6") return (tonic + 8) % 12; // 课堂简化版锚点
+  return tonic;
+}
+
 function buildChordToneSet(root, type) {
-  const rootValue = normalizeNote(root);
+  const rootValue = getFunctionalRootSemitone(root, type);
   const intervals = CHORD_INTERVALS[type] || [];
 
   if (rootValue === null) return [];

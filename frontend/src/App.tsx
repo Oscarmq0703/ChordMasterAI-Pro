@@ -179,9 +179,24 @@ const chordTypeOptions = [
   { label: "小三和弦", value: "minor" },
   { label: "减三和弦", value: "dim" },
   { label: "增三和弦", value: "aug" },
+
   { label: "属七和弦", value: "dom7" },
+  { label: "减七和弦", value: "dim7" },
+  { label: "半减七和弦", value: "m7b5" },
   { label: "大七和弦", value: "maj7" },
   { label: "小七和弦", value: "min7" },
+
+  { label: "挂二和弦", value: "sus2" },
+  { label: "挂四和弦", value: "sus4" },
+
+  { label: "那不勒斯六和弦", value: "n6" },
+  { label: "增六和弦", value: "it6" },
+  { label: "主四六和弦", value: "cad64" },
+
+  { label: "主和弦 I", value: "I" },
+  { label: "下属和弦 IV", value: "IV" },
+  { label: "属和弦 V", value: "V" },
+  { label: "属七和弦 V7", value: "V7" },
 ];
 
 const chartData = Array.from({ length: 10 }, (_, index) => ({
@@ -215,9 +230,24 @@ function getChordTypeLabel(type: string) {
     minor: "小三和弦",
     dim: "减三和弦",
     aug: "增三和弦",
+
+    dom7: "属七和弦",
+    dim7: "减七和弦",
+    m7b5: "半减七和弦",
     maj7: "大七和弦",
     min7: "小七和弦",
-    dom7: "属七和弦",
+
+    sus2: "挂二和弦",
+    sus4: "挂四和弦",
+
+    n6: "那不勒斯六和弦",
+    it6: "增六和弦",
+    cad64: "主四六和弦",
+
+    I: "主和弦 I",
+    IV: "下属和弦 IV",
+    V: "属和弦 V",
+    V7: "属七和弦 V7",
   };
 
   return map[type] || type;
@@ -1277,12 +1307,11 @@ function handlePianoNoteClick(keyId: string, note: string) {
     });
   }
 
-  const expectedCount =
-    studentSession.currentQuestion.type === "maj7" ||
-    studentSession.currentQuestion.type === "min7" ||
-    studentSession.currentQuestion.type === "dom7"
-      ? 4
-      : 3;
+const fourNoteChordTypes = ["maj7", "min7", "dom7", "dim7", "m7b5", "V7"];
+
+const expectedCount = fourNoteChordTypes.includes(studentSession.currentQuestion.type)
+  ? 4
+  : 3;
 
   setSelectedNotes((prevNotes) => {
     if (prevNotes.includes(note)) {
