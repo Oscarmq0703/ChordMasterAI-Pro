@@ -670,6 +670,7 @@ function TeacherView({
         })}
       </div>
     </div>
+    );
   ))}
 </div>
               </div>
