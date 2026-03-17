@@ -916,12 +916,17 @@ const isCorrect = noteSetCorrect && bassCorrect;
     await saveSession(sessionId, session);
 
     res.json({
-      ok: true,
-      isCorrect,
-      correctAnswer: question.correctAnswer?.tones || [],
-      studentSession: toStudentSession(session, student),
-      teacherSession: toTeacherSession(session),
-    });
+  ok: true,
+  isCorrect,
+  correctAnswer: question.correctAnswer?.tones || [],
+  noteSetCorrect,
+  bassCorrect,
+  expectedBassNote,
+  inversion: question.inversion || "root",
+  inversionLabel: question.inversionLabel || getInversionLabel("root"),
+  studentSession: toStudentSession(session, student),
+  teacherSession: toTeacherSession(session),
+});
   } catch (error) {
     res.status(500).json({
       ok: false,

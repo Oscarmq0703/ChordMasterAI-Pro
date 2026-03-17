@@ -1015,9 +1015,10 @@ function StudentView({
   sessionError: string;
   joinStudentSession: () => Promise<void>;
   answerSubmitting: boolean;
-  answerFeedback: {
+    answerFeedback: {
     type: "" | "success" | "error";
     message: string;
+    detail?: string;
   };
   handlePianoNoteClick: (keyId: string, note: string) => void;
   selectedNotes: string[];
@@ -1174,7 +1175,7 @@ const showAiSummary =
         <div>正在判定本题，请稍候…</div>
       ) : (
         <div>
-          直接在下方钢琴键盘上弹奏和弦。<br />
+          在下方钢琴键盘上弹奏和弦。<br />
           三和弦按满 3 个不同音会自动判定，七和弦按满 4 个不同音会自动判定。
         </div>
       )}
@@ -1202,16 +1203,24 @@ const showAiSummary =
     </div>
 
     {answerFeedback.message ? (
-      <div
-        style={{
-          marginTop: 14,
-          ...styles.instantFeedback,
-          ...(answerFeedback.type === "error" ? styles.instantWrong : styles.instantCorrect),
-        }}
-      >
-        {answerFeedback.type === "success" ? "本题正确" : "本题错误"}
+  <div
+    style={{
+      marginTop: 14,
+      ...styles.instantFeedback,
+      ...(answerFeedback.type === "error" ? styles.instantWrong : styles.instantCorrect),
+    }}
+  >
+    <div style={styles.instantFeedbackTitle}>
+      {answerFeedback.type === "success" ? "本题正确" : "本题错误"}
+    </div>
+
+    {answerFeedback.detail ? (
+      <div style={styles.instantFeedbackDetail}>
+        {answerFeedback.detail}
       </div>
     ) : null}
+  </div>
+) : null}
   </div>
 </Surface>
 
@@ -1314,9 +1323,11 @@ const [selectedKeyIds, setSelectedKeyIds] = useState<string[]>([]);
 const [answerFeedback, setAnswerFeedback] = useState<{
   type: "" | "success" | "error";
   message: string;
+  detail?: string;
 }>({
   type: "",
   message: "",
+  detail: "",
 });
   const [selectedChordTypes, setSelectedChordTypes] = useState<string[]>([
     "major",
@@ -1387,17 +1398,19 @@ const keyIdsToSend = keyIdsArg && keyIdsArg.length ? keyIdsArg : selectedKeyIds;
 
     if (!notesToSend.length) {
       setAnswerFeedback({
-        type: "error",
-        message: "请先弹奏钢琴键",
-      });
+  type: "",
+  message: "",
+  detail: "",
+});
       return;
     }
 
     setAnswerSubmitting(true);
     setAnswerFeedback({
-      type: "",
-      message: "",
-    });
+  type: "",
+  message: "",
+  detail: "",
+});
 
     const res = await fetch(`${API_BASE}/api/session/${sessionId}/answer`, {
       method: "POST",
@@ -1421,17 +1434,33 @@ const keyIdsToSend = keyIdsArg && keyIdsArg.length ? keyIdsArg : selectedKeyIds;
 setTeacherSession(data.teacherSession);
 setSelectedNotes([]);
 setSelectedKeyIds([]);
+const correctAnswerText = Array.isArray(data.correctAnswer)
+  ? data.correctAnswer.join(" - ")
+  : "";
+
+let feedbackDetail = "";
+
+if (data.isCorrect) {
+  feedbackDetail = "和弦音与最低音都正确。";
+} else if (data.noteSetCorrect && !data.bassCorrect) {
+  feedbackDetail = `和弦音已正确，但最低音不符合当前转位要求。应以 ${data.expectedBassNote || "—"} 为最低音。`;
+} else {
+  feedbackDetail = `和弦构成音不正确。正确答案：${correctAnswerText}`;
+}
+
 setAnswerFeedback({
   type: data.isCorrect ? "success" : "error",
   message: data.isCorrect
-    ? `回答正确，正确答案：${Array.isArray(data.correctAnswer) ? data.correctAnswer.join(" - ") : ""}`
-    : `回答错误，正确答案：${Array.isArray(data.correctAnswer) ? data.correctAnswer.join(" - ") : ""}`,
+    ? `回答正确，正确答案：${correctAnswerText}`
+    : `回答错误，正确答案：${correctAnswerText}`,
+  detail: feedbackDetail,
 });
   } catch (error: any) {
     setAnswerFeedback({
-      type: "error",
-      message: error.message || "提交答案失败",
-    });
+  type: "error",
+  message: error.message || "提交答案失败",
+  detail: "",
+});
     setSelectedNotes([]);
 setSelectedKeyIds([]);
   } finally {
@@ -1497,9 +1526,10 @@ function handlePianoNoteClick(keyId: string, note: string) {
 
   if (answerFeedback.message) {
     setAnswerFeedback({
-      type: "",
-      message: "",
-    });
+  type: "",
+  message: "",
+  detail: "",
+});
   }
 
 const fourNoteChordTypes = ["maj7", "min7", "dom7", "dim7", "m7b5", "V7"];
