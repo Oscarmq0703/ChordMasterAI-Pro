@@ -463,19 +463,41 @@ function buildClassFeedback(session) {
     .map(([type]) => type)
     .slice(0, 3);
 
-  let summary = `当前已有 ${finishedStudents.length} 名学生完成本轮训练，班级平均正确率为 ${averageAccuracy}%。`;
-  if (commonWeakTypes.length > 0) {
-    summary += ` 班级共性薄弱点集中在：${commonWeakTypes
-      .map(getChordTypeLabel)
-      .join("、")}。`;
-  } else {
-    summary += " 班级整体错误分布较均衡。";
+  let noteErrorCount = 0;
+  let bassErrorCount = 0;
+
+  for (const student of students) {
+    for (const item of student.answers || []) {
+      if (!item.isCorrect) {
+        if (item.noteSetCorrect && item.bassCorrect === false) {
+          bassErrorCount += 1;
+        } else {
+          noteErrorCount += 1;
+        }
+      }
+    }
   }
+
+  let summary = `当前已有 ${finishedStudents.length} 名学生完成本轮训练，班级平均正确率为 ${averageAccuracy}%。`;
+
+if (commonWeakTypes.length > 0) {
+  summary += ` 班级共性薄弱点集中在：${commonWeakTypes
+    .map(getChordTypeLabel)
+    .join("、")}。`;
+} else {
+  summary += " 班级整体错误分布较均衡。";
+}
+
+if (noteErrorCount > 0 || bassErrorCount > 0) {
+  summary += ` 其中，和弦构成错误 ${noteErrorCount} 次，低音/转位错误 ${bassErrorCount} 次。`;
+}
 
   return {
     finishedCount: finishedStudents.length,
     averageAccuracy,
     commonWeakTypes,
+    noteErrorCount,
+    bassErrorCount,
     summary,
     updatedAt: Date.now(),
   };
@@ -488,12 +510,21 @@ function summarizeStudent(student, totalQuestions) {
   const accuracy =
     answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
 
+  let noteErrorCount = 0;
+  let bassErrorCount = 0;
+
   const weakTypeMap = {};
-  for (const item of student.answers || []) {
-    if (!item.isCorrect) {
-      weakTypeMap[item.typeLabel] = (weakTypeMap[item.typeLabel] || 0) + 1;
+for (const item of student.answers || []) {
+  if (!item.isCorrect) {
+    weakTypeMap[item.typeLabel] = (weakTypeMap[item.typeLabel] || 0) + 1;
+
+    if (item.noteSetCorrect && item.bassCorrect === false) {
+      bassErrorCount += 1;
+    } else {
+      noteErrorCount += 1;
     }
   }
+}
 
   const weakTypes = Object.entries(weakTypeMap)
     .sort((a, b) => b[1] - a[1])
@@ -512,6 +543,8 @@ function summarizeStudent(student, totalQuestions) {
     wrongCount,
     weak: weakTypes.length ? weakTypes.join("、") : "—",
     currentQuestionIndex: student.currentQuestionIndex || 0,
+    noteErrorCount,
+    bassErrorCount,
     feedback: student.feedback || null,
   };
 }
