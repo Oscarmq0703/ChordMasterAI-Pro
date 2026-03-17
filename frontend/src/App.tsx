@@ -69,6 +69,11 @@ function setStoredStudent(sessionId: string, payload: { studentId: string; name:
   localStorage.setItem(`cm_student_${sessionId}`, JSON.stringify(payload));
 }
 
+type KeyOption = {
+  label: string;
+  value: string;
+};
+
 type StudentRow = {
   name: string;
   progress: number;
@@ -97,6 +102,8 @@ type BlackKey = {
 type TeacherSession = {
   sessionId: string;
   status: string;
+  keySignature?: string;
+  keyLabel?: string;
   createdAt?: string;
   startedAt?: string | null;
   currentQuestionIndex?: number;
@@ -145,6 +152,8 @@ type StudentSession = {
   status: string;
   studentId: string;
   name: string;
+  keySignature?: string;
+  keyLabel?: string;
   totalQuestions: number;
   currentQuestionIndex: number;
   completedCount: number;
@@ -205,6 +214,22 @@ const chordTypeGroups = [
       { label: "属和弦 V", value: "V" },
     ],
   },
+];
+
+const keyOptions: KeyOption[] = [
+  { label: "C大调", value: "C_major" },
+  { label: "G大调", value: "G_major" },
+  { label: "D大调", value: "D_major" },
+  { label: "A大调", value: "A_major" },
+  { label: "E大调", value: "E_major" },
+  { label: "B大调", value: "B_major" },
+  { label: "F大调", value: "F_major" },
+  { label: "Bb大调", value: "Bb_major" },
+  { label: "Eb大调", value: "Eb_major" },
+
+  { label: "A小调", value: "A_minor" },
+  { label: "E小调", value: "E_minor" },
+  { label: "D小调", value: "D_minor" },
 ];
 
 const chartData = Array.from({ length: 10 }, (_, index) => ({
@@ -463,6 +488,8 @@ const selected = selectedKeyIds.includes(keyId);
 function TeacherView({
   selectedChordTypes,
   setSelectedChordTypes,
+  selectedKeySignature,
+  setSelectedKeySignature,
   sessionId,
   studentJoinUrl,
   teacherSession,
@@ -472,6 +499,8 @@ function TeacherView({
 }: {
   selectedChordTypes: string[];
   setSelectedChordTypes: React.Dispatch<React.SetStateAction<string[]>>;
+  selectedKeySignature: string;
+  setSelectedKeySignature: React.Dispatch<React.SetStateAction<string>>;
   sessionId: string;
   studentJoinUrl: string;
   teacherSession: TeacherSession | null;
@@ -583,6 +612,38 @@ function TeacherView({
                 desc="选择训练和弦，构建本轮练习题库，为统一出题做好准备。"
               />
 
+<div style={styles.innerPanel}>
+  <div style={styles.innerPanelHead}>
+    <div>
+      <div style={styles.smallEyebrow}>Key Signature</div>
+      <div style={styles.innerPanelTitle}>选择本轮练习调性</div>
+    </div>
+    <div style={styles.countBadge}>
+      当前调性：{keyOptions.find((item) => item.value === selectedKeySignature)?.label || "C大调"}
+    </div>
+  </div>
+
+  <div style={styles.keyGrid}>
+    {keyOptions.map((item) => {
+      const active = selectedKeySignature === item.value;
+
+      return (
+        <button
+          key={item.value}
+          type="button"
+          onClick={() => setSelectedKeySignature(item.value)}
+          style={{
+            ...styles.keyItem,
+            ...(active ? styles.keyItemActive : {}),
+          }}
+        >
+          {item.label}
+        </button>
+      );
+    })}
+  </div>
+</div>
+
               <div style={styles.innerPanel}>
                 <div style={styles.innerPanelHead}>
                   <div>
@@ -681,6 +742,12 @@ function TeacherView({
                     当前模式：{mode === "name" ? "给音名答题" : "听和弦答题"}
                   </div>
                 </div>
+
+<div style={{ marginTop: 12 }}>
+  <span style={styles.teacherKeyBadge}>
+    当前调性：{keyOptions.find((item) => item.value === selectedKeySignature)?.label || "C大调"}
+  </span>
+</div>
 
                 <button type="button" style={styles.primaryBtn} onClick={startTeacherQuiz}>
                   开始出题
@@ -957,6 +1024,12 @@ const showAiSummary =
                   {sessionId || "未加入课堂"}
                 </div>
 
+{studentSession?.keyLabel ? (
+  <div style={styles.studentKeyBadge}>
+    当前调性：{studentSession.keyLabel}
+  </div>
+) : null}
+
                 {!sessionId ? (
                   <div style={{ fontSize: 14, color: "#fca5a5" }}>
                     请通过教师二维码或带 session 参数的链接进入学生端
@@ -1171,6 +1244,8 @@ const [answerFeedback, setAnswerFeedback] = useState<{
     "minor",
     "dom7",
   ]);
+
+const [selectedKeySignature, setSelectedKeySignature] = useState("C_major");
 
   async function createSessionIfNeeded() {
     if (sessionId) return sessionId;
@@ -1388,9 +1463,10 @@ const expectedCount = fourNoteChordTypes.includes(studentSession.currentQuestion
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      chordTypes: selectedChordTypes,
-      count: 10,
-    }),
+  chordTypes: selectedChordTypes,
+  keySignature: selectedKeySignature,
+  count: 10,
+}),
   },
   20000
 );
@@ -1477,15 +1553,17 @@ useEffect(() => {
 
       {view === "teacher" ? (
         <TeacherView
-          selectedChordTypes={selectedChordTypes}
-          setSelectedChordTypes={setSelectedChordTypes}
-          sessionId={sessionId}
-          studentJoinUrl={studentJoinUrl}
-          teacherSession={teacherSession}
-          sessionLoading={sessionLoading}
-          sessionError={sessionError}
-          startTeacherQuiz={startTeacherQuiz}
-        />
+  selectedChordTypes={selectedChordTypes}
+  setSelectedChordTypes={setSelectedChordTypes}
+  selectedKeySignature={selectedKeySignature}
+  setSelectedKeySignature={setSelectedKeySignature}
+  sessionId={sessionId}
+  studentJoinUrl={studentJoinUrl}
+  teacherSession={teacherSession}
+  sessionLoading={sessionLoading}
+  sessionError={sessionError}
+  startTeacherQuiz={startTeacherQuiz}
+/>
       ) : (
         <StudentView
   sessionId={sessionId}
@@ -1691,6 +1769,52 @@ const styles: Record<string, CSSProperties> = {
   textAlign: "left",
   fontSize: 14,
   lineHeight: 1.35,
+},
+keyGrid: {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+  gap: 10,
+},
+
+keyItem: {
+  borderRadius: 16,
+  border: "1px solid rgba(255,255,255,.08)",
+  background: "rgba(255,255,255,.035)",
+  color: "rgba(255,255,255,.82)",
+  padding: "10px 12px",
+  cursor: "pointer",
+  fontSize: 14,
+  fontWeight: 600,
+  textAlign: "center",
+},
+
+keyItemActive: {
+  border: "1px solid rgba(125,211,252,.30)",
+  background: "rgba(59,130,246,.18)",
+  color: "#e0f2fe",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
+},
+
+teacherKeyBadge: {
+  display: "inline-block",
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,.10)",
+  background: "rgba(255,255,255,.06)",
+  padding: "8px 14px",
+  fontSize: 14,
+  color: "#bae6fd",
+},
+
+studentKeyBadge: {
+  marginBottom: 14,
+  display: "inline-block",
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,.10)",
+  background: "rgba(255,255,255,.07)",
+  padding: "8px 14px",
+  fontSize: 14,
+  fontWeight: 600,
+  color: "#bae6fd",
 },
   chordItemChecked: {
     border: "1px solid rgba(255,255,255,.14)",

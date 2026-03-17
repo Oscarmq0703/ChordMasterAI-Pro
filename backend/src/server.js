@@ -166,6 +166,26 @@ function buildRoot() {
   return `${sample(ROOTS)}${sample(ACCIDENTALS)}`;
 }
 
+function getKeyLabel(keySignature = "C_major") {
+  const map = {
+    C_major: "C大调",
+    G_major: "G大调",
+    D_major: "D大调",
+    A_major: "A大调",
+    E_major: "E大调",
+    B_major: "B大调",
+    F_major: "F大调",
+    Bb_major: "Bb大调",
+    Eb_major: "Eb大调",
+
+    A_minor: "A小调",
+    E_minor: "E小调",
+    D_minor: "D小调",
+  };
+
+  return map[keySignature] || keySignature;
+}
+
 function normalizeAnswer(value = "") {
   return String(value).trim().replace(/\s+/g, "").toLowerCase();
 }
@@ -214,7 +234,11 @@ function areSameNoteSet(left = [], right = []) {
   return a.every((value, index) => value === b[index]);
 }
 
-function generateQuestions({ count = 10, chordTypes = ["major", "minor", "dom7"] }) {
+function generateQuestions({
+  count = 10,
+  chordTypes = ["major", "minor", "dom7"],
+  keySignature = "C_major",
+}) {
   const safeTypes = chordTypes.filter((t) => CHORD_LIBRARY[t]);
   const finalTypes = safeTypes.length ? safeTypes : ["major", "minor", "dom7"];
 
@@ -229,6 +253,8 @@ function generateQuestions({ count = 10, chordTypes = ["major", "minor", "dom7"]
       type,
       typeLabel: chordInfo.label,
       root,
+      keySignature,
+      keyLabel: getKeyLabel(keySignature),
       prompt: `请弹出：${root}${chordInfo.suffix}`,
       displayName: `${root}${chordInfo.suffix}`,
       correctAnswer: {
@@ -464,6 +490,8 @@ function toPublicSession(session) {
   return {
     sessionId: session.sessionId,
     status: session.status,
+    keySignature: session.keySignature || "C_major",
+    keyLabel: session.keyLabel || getKeyLabel("C_major"),
     createdAt: session.createdAt,
     startedAt: session.startedAt || null,
     currentQuestionIndex: session.currentQuestionIndex ?? 0,
@@ -494,6 +522,8 @@ function toStudentSession(session, student) {
     status: session.status,
     studentId: student.studentId,
     name: student.name,
+    keySignature: session.keySignature || "C_major",
+    keyLabel: session.keyLabel || getKeyLabel("C_major"),
     totalQuestions,
     currentQuestionIndex: currentIndex,
     completedCount: student.answers?.length || 0,
@@ -558,7 +588,11 @@ app.post("/api/session/create", async (req, res) => {
 app.post("/api/session/:sessionId/start", async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { chordTypes = ["major", "minor", "dom7"], count = 10 } = req.body || {};
+    const {
+  chordTypes = ["major", "minor", "dom7"],
+  keySignature = "C_major",
+  count = 10,
+} = req.body || {};
 
     const session = await getSession(sessionId);
 
@@ -569,13 +603,15 @@ app.post("/api/session/:sessionId/start", async (req, res) => {
       });
     }
 
-    const questions = generateQuestions({ chordTypes, count });
+    const questions = generateQuestions({ chordTypes, keySignature, count });
 
     const nextSession = {
       ...session,
       status: "running",
       startedAt: new Date().toISOString(),
       currentQuestionIndex: 0,
+      keySignature,
+      keyLabel: getKeyLabel(keySignature),
       questions,
       stats: {
         byQuestion: buildQuestionStats(questions),
