@@ -74,6 +74,11 @@ type KeyOption = {
   value: string;
 };
 
+type InversionOption = {
+  label: string;
+  value: string;
+};
+
 type StudentRow = {
   name: string;
   progress: number;
@@ -104,6 +109,8 @@ type TeacherSession = {
   status: string;
   keySignature?: string;
   keyLabel?: string;
+  inversionMode?: string;
+  inversionLabel?: string;
   createdAt?: string;
   startedAt?: string | null;
   currentQuestionIndex?: number;
@@ -154,6 +161,8 @@ type StudentSession = {
   name: string;
   keySignature?: string;
   keyLabel?: string;
+  inversionMode?: string;
+  inversionLabel?: string;
   totalQuestions: number;
   currentQuestionIndex: number;
   completedCount: number;
@@ -167,6 +176,8 @@ type StudentSession = {
     displayName: string;
     type: string;
     typeLabel: string;
+  inversionMode?: string;
+  inversionLabel?: string;
     root: string;
   } | null;
   lastAnswer?: {
@@ -232,6 +243,14 @@ const keyOptions: KeyOption[] = [
   { label: "D小调", value: "D_minor" },
 ];
 
+const inversionOptions: InversionOption[] = [
+  { label: "混合随机", value: "mixed" },
+  { label: "原位", value: "root" },
+  { label: "第一转位", value: "first" },
+  { label: "第二转位", value: "second" },
+  { label: "第三转位", value: "third" },
+];
+
 const chartData = Array.from({ length: 10 }, (_, index) => ({
   name: `Q${index + 1}`,
   rate: [92, 78, 84, 70, 88, 66, 80, 74, 91, 76][index],
@@ -284,6 +303,18 @@ function getChordTypeLabel(type: string) {
   };
 
   return map[type] || type;
+}
+
+function getInversionLabel(inversion?: string) {
+  const map: Record<string, string> = {
+    mixed: "混合随机",
+    root: "原位",
+    first: "第一转位",
+    second: "第二转位",
+    third: "第三转位",
+  };
+
+  return map[inversion || ""] || "—";
 }
 
 function StatusPill({
@@ -490,6 +521,8 @@ function TeacherView({
   setSelectedChordTypes,
   selectedKeySignature,
   setSelectedKeySignature,
+  selectedInversionMode,
+  setSelectedInversionMode,
   sessionId,
   studentJoinUrl,
   teacherSession,
@@ -501,6 +534,8 @@ function TeacherView({
   setSelectedChordTypes: React.Dispatch<React.SetStateAction<string[]>>;
   selectedKeySignature: string;
   setSelectedKeySignature: React.Dispatch<React.SetStateAction<string>>;
+  selectedInversionMode: string;
+  setSelectedInversionMode: React.Dispatch<React.SetStateAction<string>>;
   sessionId: string;
   studentJoinUrl: string;
   teacherSession: TeacherSession | null;
@@ -644,6 +679,38 @@ function TeacherView({
   </div>
 </div>
 
+<div style={styles.innerPanel}>
+  <div style={styles.innerPanelHead}>
+    <div>
+      <div style={styles.smallEyebrow}>Inversion Mode</div>
+      <div style={styles.innerPanelTitle}>选择本轮练习转位要求</div>
+    </div>
+    <div style={styles.countBadge}>
+      当前转位：{getInversionLabel(selectedInversionMode)}
+    </div>
+  </div>
+
+  <div style={styles.keyGrid}>
+    {inversionOptions.map((item) => {
+      const active = selectedInversionMode === item.value;
+
+      return (
+        <button
+          key={item.value}
+          type="button"
+          onClick={() => setSelectedInversionMode(item.value)}
+          style={{
+            ...styles.keyItem,
+            ...(active ? styles.keyItemActive : {}),
+          }}
+        >
+          {item.label}
+        </button>
+      );
+    })}
+  </div>
+</div>
+
               <div style={styles.innerPanel}>
                 <div style={styles.innerPanelHead}>
                   <div>
@@ -746,6 +813,12 @@ function TeacherView({
 <div style={{ marginTop: 12 }}>
   <span style={styles.teacherKeyBadge}>
     当前调性：{keyOptions.find((item) => item.value === selectedKeySignature)?.label || "C大调"}
+  </span>
+</div>
+
+<div style={{ marginTop: 10 }}>
+  <span style={styles.teacherInversionBadge}>
+    当前转位：{getInversionLabel(selectedInversionMode)}
   </span>
 </div>
 
@@ -1030,6 +1103,12 @@ const showAiSummary =
   </div>
 ) : null}
 
+{studentSession?.inversionLabel ? (
+  <div style={styles.studentInversionBadge}>
+    转位要求：{studentSession.inversionLabel}
+  </div>
+) : null}
+
                 {!sessionId ? (
                   <div style={{ fontSize: 14, color: "#fca5a5" }}>
                     请通过教师二维码或带 session 参数的链接进入学生端
@@ -1246,6 +1325,7 @@ const [answerFeedback, setAnswerFeedback] = useState<{
   ]);
 
 const [selectedKeySignature, setSelectedKeySignature] = useState("C_major");
+const [selectedInversionMode, setSelectedInversionMode] = useState("mixed");
 
   async function createSessionIfNeeded() {
     if (sessionId) return sessionId;
@@ -1295,7 +1375,7 @@ const [selectedKeySignature, setSelectedKeySignature] = useState("C_major");
   setStudentSession(data.studentSession);
 }
 
-async function submitStudentAnswer(notesArg?: string[]) {
+async function submitStudentAnswer(notesArg?: string[], keyIdsArg?: string[]) {
   try {
     if (!sessionId || !studentId) {
       setSessionError("请先加入课堂");
@@ -1303,6 +1383,7 @@ async function submitStudentAnswer(notesArg?: string[]) {
     }
 
     const notesToSend = notesArg && notesArg.length ? notesArg : selectedNotes;
+const keyIdsToSend = keyIdsArg && keyIdsArg.length ? keyIdsArg : selectedKeyIds;
 
     if (!notesToSend.length) {
       setAnswerFeedback({
@@ -1324,9 +1405,10 @@ async function submitStudentAnswer(notesArg?: string[]) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        studentId,
-        notes: notesToSend,
-      }),
+  studentId,
+  notes: notesToSend,
+  keyIds: keyIdsToSend,
+}),
     });
 
     const data = await res.json();
@@ -1441,10 +1523,14 @@ const expectedCount = fourNoteChordTypes.includes(studentSession.currentQuestion
     });
 
     if (nextNotes.length >= expectedCount) {
-      Promise.resolve().then(() => {
-        submitStudentAnswer(nextNotes);
-      });
-    }
+  const nextKeyIds = selectedKeyIds.includes(keyId)
+    ? selectedKeyIds
+    : [...selectedKeyIds, keyId];
+
+  Promise.resolve().then(() => {
+    submitStudentAnswer(nextNotes, nextKeyIds);
+  });
+}
 
     return nextNotes;
   });
@@ -1465,6 +1551,7 @@ const expectedCount = fourNoteChordTypes.includes(studentSession.currentQuestion
     body: JSON.stringify({
   chordTypes: selectedChordTypes,
   keySignature: selectedKeySignature,
+  inversionMode: selectedInversionMode,
   count: 10,
 }),
   },
@@ -1557,6 +1644,8 @@ useEffect(() => {
   setSelectedChordTypes={setSelectedChordTypes}
   selectedKeySignature={selectedKeySignature}
   setSelectedKeySignature={setSelectedKeySignature}
+  selectedInversionMode={selectedInversionMode}
+  setSelectedInversionMode={setSelectedInversionMode}
   sessionId={sessionId}
   studentJoinUrl={studentJoinUrl}
   teacherSession={teacherSession}
@@ -2379,5 +2468,27 @@ studentLandscapeHint: {
   fontWeight: 700,
   color: "#fcd34d",
   letterSpacing: ".02em",
+},
+teacherInversionBadge: {
+  display: "inline-block",
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,.10)",
+  background: "rgba(255,255,255,.06)",
+  padding: "8px 14px",
+  fontSize: 14,
+  color: "#ddd6fe",
+},
+
+studentInversionBadge: {
+  marginLeft: 10,
+  marginBottom: 14,
+  display: "inline-block",
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,.10)",
+  background: "rgba(255,255,255,.07)",
+  padding: "8px 14px",
+  fontSize: 14,
+  fontWeight: 600,
+  color: "#ddd6fe",
 },
 };

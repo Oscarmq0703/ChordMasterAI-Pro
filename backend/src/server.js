@@ -158,6 +158,28 @@ const CHORD_INTERVALS = {
   V7: [0, 4, 7, 10],
 };
 
+function getAvailableInversions(type) {
+  const intervals = CHORD_INTERVALS[type] || [];
+  if (intervals.length === 4) {
+    return ["root", "first", "second", "third"];
+  }
+  return ["root", "first", "second"];
+}
+
+function pickInversion(type, inversionMode = "mixed") {
+  const available = getAvailableInversions(type);
+
+  if (inversionMode === "mixed") {
+    return sample(available);
+  }
+
+  if (available.includes(inversionMode)) {
+    return inversionMode;
+  }
+
+  return "root";
+}
+
 function sample(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -184,6 +206,18 @@ function getKeyLabel(keySignature = "C_major") {
   };
 
   return map[keySignature] || keySignature;
+}
+
+function getInversionLabel(inversion = "mixed") {
+  const map = {
+    mixed: "混合随机",
+    root: "原位",
+    first: "第一转位",
+    second: "第二转位",
+    third: "第三转位",
+  };
+
+  return map[inversion] || inversion;
 }
 
 function normalizeAnswer(value = "") {
@@ -226,6 +260,12 @@ function normalizeNoteArray(notes = []) {
   return [...new Set(values)].sort((a, b) => a - b);
 }
 
+function parseKeyOrder(keyId = "") {
+  const parts = String(keyId).split("-");
+  const index = Number(parts[2]);
+  return Number.isFinite(index) ? index : 999;
+}
+
 function areSameNoteSet(left = [], right = []) {
   const a = normalizeNoteArray(left);
   const b = normalizeNoteArray(right);
@@ -234,10 +274,22 @@ function areSameNoteSet(left = [], right = []) {
   return a.every((value, index) => value === b[index]);
 }
 
+function getExpectedBassNote(tones = [], inversion = "root") {
+  if (!tones.length) return null;
+
+  if (inversion === "root") return tones[0] || null;
+  if (inversion === "first") return tones[1] || null;
+  if (inversion === "second") return tones[2] || null;
+  if (inversion === "third") return tones[3] || null;
+
+  return tones[0] || null;
+}
+
 function generateQuestions({
   count = 10,
   chordTypes = ["major", "minor", "dom7"],
   keySignature = "C_major",
+  inversionMode = "mixed",
 }) {
   const safeTypes = chordTypes.filter((t) => CHORD_LIBRARY[t]);
   const finalTypes = safeTypes.length ? safeTypes : ["major", "minor", "dom7"];
@@ -246,6 +298,7 @@ function generateQuestions({
     const type = sample(finalTypes);
     const root = buildRoot();
     const chordInfo = CHORD_LIBRARY[type];
+    const inversion = pickInversion(type, inversionMode);
 
     return {
       id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
@@ -255,6 +308,8 @@ function generateQuestions({
       root,
       keySignature,
       keyLabel: getKeyLabel(keySignature),
+      inversion,
+      inversionLabel: getInversionLabel(inversion),
       prompt: `请弹出：${root}${chordInfo.suffix}`,
       displayName: `${root}${chordInfo.suffix}`,
       correctAnswer: {
@@ -524,6 +579,8 @@ function toStudentSession(session, student) {
     name: student.name,
     keySignature: session.keySignature || "C_major",
     keyLabel: session.keyLabel || getKeyLabel("C_major"),
+    inversionMode: session.inversionMode || "mixed",
+    inversionLabel: session.inversionLabel || getInversionLabel("mixed"),
     totalQuestions,
     currentQuestionIndex: currentIndex,
     completedCount: student.answers?.length || 0,
@@ -539,6 +596,8 @@ function toStudentSession(session, student) {
           type: currentQuestion.type,
           typeLabel: currentQuestion.typeLabel,
           root: currentQuestion.root,
+          inversion: currentQuestion.inversion,
+          inversionLabel: currentQuestion.inversionLabel,
         }
       : null,
     lastAnswer:
@@ -591,6 +650,7 @@ app.post("/api/session/:sessionId/start", async (req, res) => {
     const {
   chordTypes = ["major", "minor", "dom7"],
   keySignature = "C_major",
+  inversionMode = "mixed",
   count = 10,
 } = req.body || {};
 
@@ -603,7 +663,12 @@ app.post("/api/session/:sessionId/start", async (req, res) => {
       });
     }
 
-    const questions = generateQuestions({ chordTypes, keySignature, count });
+    const questions = generateQuestions({
+  chordTypes,
+  keySignature,
+  inversionMode,
+  count,
+});
 
     const nextSession = {
       ...session,
@@ -612,6 +677,8 @@ app.post("/api/session/:sessionId/start", async (req, res) => {
       currentQuestionIndex: 0,
       keySignature,
       keyLabel: getKeyLabel(keySignature),
+      inversionMode,
+      inversionLabel: getInversionLabel(inversionMode),
       questions,
       stats: {
         byQuestion: buildQuestionStats(questions),
@@ -735,7 +802,7 @@ app.get("/api/session/:sessionId/student/:studentId", async (req, res) => {
 app.post("/api/session/:sessionId/answer", async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { studentId, notes = [] } = req.body || {};
+    const { studentId, notes = [], keyIds = [] } = req.body || {};
 
     const session = await getSession(sessionId);
 
@@ -781,10 +848,32 @@ app.post("/api/session/:sessionId/answer", async (req, res) => {
     }
 
     const expectedNotes = question.correctAnswer?.tones || [];
-    const normalizedPlayedNotes = normalizeNoteArray(notes).map(
-      (value) => SEMITONE_TO_NOTE[value]
-    );
-    const isCorrect = areSameNoteSet(notes, expectedNotes);
+const normalizedPlayedNotes = normalizeNoteArray(notes).map(
+  (value) => SEMITONE_TO_NOTE[value]
+);
+
+const noteSetCorrect = areSameNoteSet(notes, expectedNotes);
+
+const sortedKeyIds = Array.isArray(keyIds)
+  ? [...keyIds].sort((a, b) => parseKeyOrder(a) - parseKeyOrder(b))
+  : [];
+
+const bassKeyId = sortedKeyIds[0] || null;
+const bassNoteFromKeyId = bassKeyId
+  ? bassKeyId.split("-")[1] || null
+  : null;
+
+const expectedBassNote = getExpectedBassNote(
+  expectedNotes,
+  question.inversion || "root"
+);
+
+const bassCorrect =
+  !expectedBassNote || !bassNoteFromKeyId
+    ? false
+    : normalizeNote(expectedBassNote) === normalizeNote(bassNoteFromKeyId);
+
+const isCorrect = noteSetCorrect && bassCorrect;
 
     const answerRecord = {
       questionId: question.id,
@@ -793,6 +882,12 @@ app.post("/api/session/:sessionId/answer", async (req, res) => {
       displayName: question.displayName,
       type: question.type,
       typeLabel: question.typeLabel,
+      inversion: question.inversion || "root",
+      inversionLabel: question.inversionLabel || getInversionLabel("root"),
+      bassNote: bassNoteFromKeyId,
+      expectedBassNote,
+      noteSetCorrect,
+      bassCorrect,
       answer: Array.isArray(notes) ? notes.join("-") : "",
       playedNotes: normalizedPlayedNotes,
       expectedNotes,
