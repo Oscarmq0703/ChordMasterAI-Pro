@@ -2514,11 +2514,22 @@ studentInversionBadge: {
   marginBottom: 14,
   display: "inline-block",
   borderRadius: 999,
-  border: "1px solid rgba(255,255,255,.10)",
-  background: "rgba(255,255,255,.07)",
+  border: "1px solid rgba(196,181,253,.24)",
+  background: "rgba(196,181,253,.14)",
   padding: "8px 14px",
   fontSize: 14,
-  fontWeight: 600,
-  color: "#ddd6fe",
+  fontWeight: 700,
+  color: "#e9d5ff",
+},
+instantFeedbackTitle: {
+  fontSize: 16,
+  fontWeight: 700,
+},
+
+instantFeedbackDetail: {
+  marginTop: 8,
+  fontSize: 14,
+  lineHeight: 1.7,
+  color: "rgba(255,255,255,.88)",
 },
 };
