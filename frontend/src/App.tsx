@@ -135,6 +135,8 @@ type TeacherSession = {
   wrongCount: number;
   weak: string;
   currentQuestionIndex: number;
+  noteErrorCount?: number;
+  bassErrorCount?: number;
   feedback?: Feedback | null;
 }>;
   chartData?: Array<{
@@ -146,12 +148,14 @@ type TeacherSession = {
   }>;
   stats?: Record<string, any>;
   classFeedback?: {
-    finishedCount: number;
-    averageAccuracy: number;
-    commonWeakTypes: string[];
-    summary: string;
-    updatedAt: number;
-  } | null;
+  finishedCount: number;
+  averageAccuracy: number;
+  commonWeakTypes: string[];
+  noteErrorCount?: number;
+  bassErrorCount?: number;
+  summary: string;
+  updatedAt: number;
+} | null;
 };
 
 type StudentSession = {
@@ -912,11 +916,13 @@ function TeacherView({
 
             <div style={styles.innerPanel}>
               <div style={styles.studentHeader}>
-                <div style={{ color: "#bae6fd" }}>学生姓名</div>
-                <div style={{ color: "#ddd6fe", textAlign: "center" }}>完成进度</div>
-                <div style={{ color: "#a7f3d0", paddingLeft: 24 }}>正确率</div>
-                <div style={{ color: "#fde68a" }}>薄弱和弦类型</div>
-              </div>
+  <div style={{ color: "#bae6fd" }}>学生姓名</div>
+  <div style={{ color: "#ddd6fe", textAlign: "center" }}>完成进度</div>
+  <div style={{ color: "#a7f3d0", paddingLeft: 24 }}>正确率</div>
+  <div style={{ color: "#fca5a5" }}>构成错误</div>
+  <div style={{ color: "#fcd34d" }}>低音/转位错误</div>
+  <div style={{ color: "#fde68a" }}>薄弱和弦类型</div>
+</div>
 
               <div style={{ display: "grid", gap: 12 }}>
 {!teacherSession?.students?.length ? (
@@ -945,6 +951,18 @@ function TeacherView({
     <div style={{ paddingLeft: 24 }}>
       <span style={styles.rateBadge}>{student.accuracy || 0}%</span>
     </div>
+
+<div>
+  <span style={styles.errorCountBadge}>
+    {student.noteErrorCount ?? 0}
+  </span>
+</div>
+
+<div>
+  <span style={styles.bassErrorCountBadge}>
+    {student.bassErrorCount ?? 0}
+  </span>
+</div>
 
     <div style={{ color: "rgba(255,255,255,.64)" }}>{student.weak || "—"}</div>
   </div>
@@ -1254,20 +1272,38 @@ const showAiSummary =
       </div>
 
       <div style={styles.feedbackSummaryWrap}>
-        <div style={styles.feedbackMetricRow}>
-          <div style={styles.feedbackMetricCard}>
-            <div style={styles.feedbackMetricValue}>{feedback.accuracy}%</div>
-            <div style={styles.feedbackMetricLabel}>正确率</div>
-          </div>
-          <div style={styles.feedbackMetricCard}>
-            <div style={styles.feedbackMetricValue}>{feedback.correctCount}</div>
-            <div style={styles.feedbackMetricLabel}>答对题数</div>
-          </div>
-          <div style={styles.feedbackMetricCard}>
-            <div style={styles.feedbackMetricValue}>{feedback.totalAnswered}</div>
-            <div style={styles.feedbackMetricLabel}>完成题数</div>
-          </div>
-        </div>
+        <div style={styles.classFeedbackMetricGrid}>
+  <div style={styles.feedbackMetricCard}>
+    <div style={styles.feedbackMetricValue}>{classFeedback.finishedCount}</div>
+    <div style={styles.feedbackMetricLabel}>已完成学生</div>
+  </div>
+
+  <div style={styles.feedbackMetricCard}>
+    <div style={styles.feedbackMetricValue}>{classFeedback.averageAccuracy}%</div>
+    <div style={styles.feedbackMetricLabel}>班级平均正确率</div>
+  </div>
+
+  <div style={styles.feedbackMetricCard}>
+    <div style={styles.feedbackMetricValue}>
+      {classFeedback.commonWeakTypes?.length || 0}
+    </div>
+    <div style={styles.feedbackMetricLabel}>共性薄弱点</div>
+  </div>
+
+  <div style={styles.feedbackMetricCard}>
+    <div style={styles.feedbackMetricValue}>
+      {classFeedback.noteErrorCount ?? 0}
+    </div>
+    <div style={styles.feedbackMetricLabel}>构成错误</div>
+  </div>
+
+  <div style={styles.feedbackMetricCard}>
+    <div style={styles.feedbackMetricValue}>
+      {classFeedback.bassErrorCount ?? 0}
+    </div>
+    <div style={styles.feedbackMetricLabel}>低音/转位错误</div>
+  </div>
+</div>
 
         <div style={styles.aiFeedbackCard}>
           <div style={styles.feedbackBlockTitle}>本轮学习反馈</div>
@@ -2066,26 +2102,26 @@ studentKeyBadge: {
     boxShadow: "0 14px 30px rgba(255,255,255,.16)",
   },
   studentHeader: {
-    display: "grid",
-    gridTemplateColumns: "1.1fr 1.55fr 0.8fr 1.35fr",
-    gap: 24,
-    padding: "0 16px 16px 16px",
-    fontSize: 16,
-    fontWeight: 600,
-    letterSpacing: ".02em",
-    color: "rgba(255,255,255,.92)",
-  },
+  display: "grid",
+  gridTemplateColumns: "1.15fr 1.45fr 0.75fr 0.8fr 1fr 1.2fr",
+  gap: 18,
+  padding: "0 16px 16px 16px",
+  fontSize: 15,
+  fontWeight: 600,
+  letterSpacing: ".02em",
+  color: "rgba(255,255,255,.92)",
+},
   studentRow: {
-    display: "grid",
-    gridTemplateColumns: "1.1fr 1.55fr 0.8fr 1.35fr",
-    gap: 24,
-    alignItems: "center",
-    borderRadius: 24,
-    border: "1px solid rgba(255,255,255,.10)",
-    background: "rgba(255,255,255,.05)",
-    padding: 16,
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
-  },
+  display: "grid",
+  gridTemplateColumns: "1.15fr 1.45fr 0.75fr 0.8fr 1fr 1.2fr",
+  gap: 18,
+  alignItems: "center",
+  borderRadius: 24,
+  border: "1px solid rgba(255,255,255,.10)",
+  background: "rgba(255,255,255,.05)",
+  padding: 16,
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
+},
   progressCol: {
     display: "flex",
     alignItems: "center",
@@ -2531,5 +2567,35 @@ instantFeedbackDetail: {
   fontSize: 14,
   lineHeight: 1.7,
   color: "rgba(255,255,255,.88)",
+},
+errorCountBadge: {
+  display: "inline-block",
+  minWidth: 44,
+  textAlign: "center",
+  borderRadius: 999,
+  border: "1px solid rgba(252,165,165,.18)",
+  background: "rgba(248,113,113,.10)",
+  padding: "7px 12px",
+  color: "#fecaca",
+  fontSize: 14,
+  fontWeight: 700,
+},
+
+bassErrorCountBadge: {
+  display: "inline-block",
+  minWidth: 56,
+  textAlign: "center",
+  borderRadius: 999,
+  border: "1px solid rgba(252,211,77,.18)",
+  background: "rgba(250,204,21,.10)",
+  padding: "7px 12px",
+  color: "#fde68a",
+  fontSize: 14,
+  fontWeight: 700,
+},
+classFeedbackMetricGrid: {
+  display: "grid",
+  gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+  gap: 12,
 },
 };
